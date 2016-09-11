@@ -1,4 +1,0 @@
-# Lambda And Inner Class
-
-
-
