@@ -4,7 +4,9 @@
 
 函数式编程与面向对象编程都是编程思想，一种面向对象语言引入函数式编程思想有什么意义，本文不做探讨。我只关注题目所示的Lambda表达式与匿名类。
 
-其实Java在之前的版本就已经提供的一些接口可当做函数式，比如Runnable，就可以借助匿名类实现。其他框架如Guava，也提供了函数式接口。
+Lambda并不是Java新增的某种函数类型，本质上Java编译器会把它解析为某种函数接口（Functional Interface）。
+
+其实Java在之前的版本就已经提供的一些接口可当做函数式，比如Runnable，就可以借助匿名类实现。其他框架如Guava，也提供了函数接口。
 
 ## 功能比较
 
@@ -83,10 +85,179 @@ outter
 
 > Like local and anonymous classes, lambda expressions can capture variables; they have the same access to local variables of the enclosing scope. However, unlike local and anonymous classes, lambda expressions do not have any shadowing issues (see Shadowing for more information). Lambda expressions are lexically scoped. This means that they do not inherit any names from a supertype or introduce a new level of scoping. Declarations in a lambda expression are interpreted just as they are in the enclosing environment. 
 
-## 使用场景
+#### 使用场景
 
 其实使用场景下匿名类和Lambda表达式没有太大差异。不过上面也提到了，Lambda表达式有一定限制，首先就是Lambda表达式的目标类型必须是SAM（Single Abstract Method）接口，像Runnable、Callbable这样的。
 
 ## 性能
    
+做了个简单的测试：
+
+```
+public class LambdaTest3 {
+
+	public static void main(String[] args) {
+		LambdaTest3 test = new LambdaTest3();
+		int ceiling = 10000;
+		
+		long start = System.currentTimeMillis();
+		System.out.println("Count primes from 0 up to " + ceiling + " with Anonymous Class ===");
+		System.out.println("count : " + test.countPrimesWithAC(ceiling));
+		System.out.println("use : " + (System.currentTimeMillis() - start));
+		
+		System.out.println("======");
+		
+		start = System.currentTimeMillis();
+		System.out.println("Count primes from 0 up to " + ceiling + " with Lambda ===");
+		System.out.println("count : " + test.countPrimesWithLambda(ceiling));
+		System.out.println("use : " + (System.currentTimeMillis() - start));
+	}
+	
+	int countPrimesWithAC(int ceiling) {
+		return new PrimeCounter() {
+
+			@Override
+			int countPrimes(int ceiling) {
+				int count = 0;
+				for (int i=0;i<ceiling;i++) {
+					if (isPrime(i)) {
+//						System.out.println(i);
+						count++;
+					}
+				}
+				return count;
+			}
+			
+		}.countPrimes(ceiling);
+	}
+	
+	long countPrimesWithLambda(int ceiling) {
+		return IntStream.range(0, ceiling).filter(i -> isPrime(i)).count();
+	}
+	
+	boolean isPrime(int i) {
+		for (int j=2;j<i;j++) {
+//		for (int j=2;j<=Math.sqrt(i);j++) {
+			if (i%j == 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	abstract class PrimeCounter {
+		
+		abstract int countPrimes(int ceiling);
+		
+	}
+
+}
+```
+统计质数，请不要纠结算法本身的效率，要的就是稍微明显点的差异，多次统计结果基本相同：
+
+```
+Count primes from 0 up to 10000 with Anonymous Class ===
+count : 1231
+use : 20
+======
+Count primes from 0 up to 10000 with Lambda ===
+count : 1231
+use : 65
+```
+此用例中，Lambda的执行时间大约在匿名类的3倍以上，这似乎与官方的benchmark测试结果差异较大。
+
+而当isPrime方法替换成以下isPrime1方法后：
+
+```
+boolean isPrime1(int i) {
+		return IntStream.range(2, i).allMatch(j -> (i%j != 0));
+	}
+```
+更糟糕，超过4倍了：
+
+```
+Count primes from 0 up to 10000 with Anonymous Class ===
+count : 1231
+use : 20
+======
+Count primes from 0 up to 10000 with Lambda ===
+count : 1231
+use : 95
+```
+
+改写成并行流后：
+
+```
+long countPrimesWithLambda(int ceiling) {
+		return IntStream.range(0, ceiling).parallel().filter(i -> isPrime(i)).count();
+	}
+......
+boolean isPrime1(int i) {
+		return IntStream.range(2, i).parallel().allMatch(j -> (i%j != 0));
+	}
+```
+似乎有所提升，又回到3倍了。。。
+
+```
+Count primes from 0 up to 10000 with Anonymous Class ===
+count : 1231
+use : 18
+======
+Count primes from 0 up to 10000 with Lambda ===
+count : 1231
+use : 53
+```
+我试着做一些假设，匿名类的性能损耗在于类加载及构造对象，Lambda的损耗在于将表达式解析为函数接口，同样也需要执行类加载和构造对象等操作。构造对象操作每次都有，理论上问题不大。如果每一个相同的Lambda都需要执行这些操作，那么我只做一次会怎么样。
+
+为了公平起见，我把匿名类和Lambda同时定义为类变量。
+
+```
+final PrimeCounter primeCounter = new PrimeCounter() {
+
+		@Override
+		int countPrimes(int ceiling) {
+			int count = 0;
+			for (int i=0;i<ceiling;i++) {
+				if (isPrime(i)) {
+					count++;
+				}
+			}
+			return count;
+		}
+		
+	};
+	
+final IntPredicate predicate1 = (i) -> isPrime(i);
+```
+把4种方式测试结果都打出来：
+
+```
+Count primes from 0 up to 10000 with Anonymous Class ===
+count : 1231
+use : 18
+======
+Count primes from 0 up to 10000 with Lambda ===
+count : 1231
+use : 12
+======
+Count primes from 0 up to 10000 with final Anonymous Class ===
+count : 1231
+use : 15
+======
+Count primes from 0 up to 10000 with final Lambda ===
+count : 1231
+use : 16
+```
+结果基本证实了之前的假设。Java编译器对Lambda表达式的执行优化可能不像对匿名类那样成熟（当然也许是Lambda本身的限制），我认为这种所谓的不成熟主要体现在Lambda表达式解析并加载类上，每次Lambda执行都需要在运行时加载类，而匿名类则不会。所以当Lambda定义为类变量后，表达式解析和类加载均只执行了一次。但第二个用例countPrimesWithLambda为什么也会被优化，甚至比匿名类还快，我需要详细看看JVM到底是如何解析Lambda表达式才能进一步分析，这次先到这吧。
+
+此外，官方提供的benchmark测试结果是Lambda在最坏的情况下比匿名类要好5倍，所以肯定还有可以优化的地方。
+
+如果想了解官方对二者更详细的比较，E文靠谱的同学可围观以下视频：
+[Lambda vs Anonymous Class](http://medianetwork.oracle.com/video/player/2623576348001)
+
+相关测试代码：
+[Java8 Demo](https://github.com/gulfer/java8)
+
+简单总结一下，到目前为止我仍然认为Lambda表达式对Java而言更多的是语法糖，Lambda能做的事匿名类同样可以做到，所以功能性方面并没有实际的增加。不过对于Java来说，我还是很认同引入函数式编程这种思想的，更简洁的代码，更优雅的集合类操作方式，（不提并行化是我觉得Java7已经有ForkJoinPool了），所以对语言本身，是进步。而回到本文的主题Lambda和匿名类，我还是持比较保守的态度，慎用，目前还不知道有什么坑，不过我们的工作环境恐怕一时半会也用不上。
+
 
