@@ -10,7 +10,7 @@
 
 OOP要求我们关注对象，而函数式编程让我们关注过程。匿名类在一定程度上简化了Java开发者对类的关注，但你仍然不能脱离接口，而Lambda表达式是匿名函数，你只要关心写好函数体就可以了。我觉得这是本质上的差别。
 
-#### 减少代码冗余
+#### 代码精简
 
 写个匿名类，你要么定义个接口，要么定义抽象类
 
@@ -43,13 +43,45 @@ factory.init(dataSourceConfig, loader);
 
 * 对于异常，unchecked异常在函数式接口中不用声明，抛出checked异常仍然需要声明
 
-总的来说代码精简了不少，这是最主要的一个差异。不过如果仅此而已，那么充其量也就是个语法糖。
+总的来说代码精简了不少，这是最主要的一个差异（还是语法糖）。
 
 #### final变量
 
 Java8对匿名类和Lambda解除了final变量的限制，但实际上，在Lambda中引用一个值变化过的变量仍然会报错。
 
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/lambda%20final%20error.png)
+
+#### this
+
+Lambda定义了一个闭包，this变量在闭包内部引用的是外部类实例，而在内部类中的this，引用的是内部类实例
+
+```
+private String s = "Outter";
+
+void sayHelloInInner(LambdaTest2 test){
+		test.sayHello(new Hello2() {
+			
+			private String s = "inner";
+
+			@Override
+			public void print() {
+				System.out.println(this.s);
+			}
+			
+		});
+	}
+	
+void sayHelloInLambda(LambdaTest2 test) {
+		test.sayHello(() -> System.out.println(this.s));
+	}
+```
+两个方法依次调用则打印：
+inner
+outter
+
+引申而言，Lambda表达式没有任何隐藏变量，即不会从父类中集成任何变量，同名的变量在闭包内外语义相同。
+
+> Like local and anonymous classes, lambda expressions can capture variables; they have the same access to local variables of the enclosing scope. However, unlike local and anonymous classes, lambda expressions do not have any shadowing issues (see Shadowing for more information). Lambda expressions are lexically scoped. This means that they do not inherit any names from a supertype or introduce a new level of scoping. Declarations in a lambda expression are interpreted just as they are in the enclosing environment. 
 
 ## 使用场景
 
