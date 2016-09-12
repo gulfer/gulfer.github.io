@@ -14,7 +14,7 @@ OOP要求我们关注对象，而函数式编程让我们关注过程。匿名�
 
 这是Firefly的一段代码：
 
-```
+```java
 factory.init(dataSourceConfig,
 				new ValueLoader<String, Class<DataSource>>() {
 
@@ -29,7 +29,7 @@ factory.init(dataSourceConfig,
 
 改成Lambda之后变成这样：
 
-```
+```java
 ValueLoader<String, Class<DataSource>> loader = (s) -> DataSource.class;
 factory.init(dataSourceConfig, loader);
 ```
@@ -53,7 +53,7 @@ Java8对匿名类和Lambda解除了final变量的限制，但实际上，在Lamb
 
 Lambda定义了一个闭包，this变量在闭包内部引用的是外部类实例，而在内部类中的this，引用的是内部类实例
 
-```
+```java
 private String s = "Outter";
 
 void sayHelloInInner(LambdaTest2 test){
@@ -89,7 +89,7 @@ outter
    
 做了个简单的测试：
 
-```
+```java
 public class LambdaTest3 {
 
 	public static void main(String[] args) {
@@ -164,7 +164,7 @@ use : 65
 
 而当isPrime方法替换成以下isPrime1方法后：
 
-```
+```java
 boolean isPrime1(int i) {
 		return IntStream.range(2, i).allMatch(j -> (i%j != 0));
 	}
@@ -183,7 +183,7 @@ use : 95
 
 改写成并行流后：
 
-```
+```java
 long countPrimesWithLambda(int ceiling) {
 		return IntStream.range(0, ceiling).parallel().filter(i -> isPrime(i)).count();
 	}
@@ -207,7 +207,7 @@ use : 53
 
 为了公平起见，我把匿名类和Lambda同时定义为类变量。
 
-```
+```java
 final PrimeCounter primeCounter = new PrimeCounter() {
 
 		@Override
