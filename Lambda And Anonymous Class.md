@@ -31,7 +31,7 @@ factory.init(dataSourceConfig,
 				});
 ```
 
-改成Lambda之后变成这个鬼样：
+改成Lambda之后变成这样：
 
 ```
 ValueLoader<String, Class<DataSource>> loader = (s) -> DataSource.class;
