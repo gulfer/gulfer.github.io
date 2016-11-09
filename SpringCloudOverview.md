@@ -1,6 +1,6 @@
-# AbstractQueuedSynchronizer简介
+# Spring Cloud体系简介
 
-AbstractQueueSynchronizer(AQS)是Java自1.5版本新增的一个基类，语义上看是队列同步器，简单来说是对线程建同步机制进行的抽象，是JDK中构建的主要基类。查看其继承关系，可发现JDK concurrent包下许多类都是基于此基类实现线程同步，理解AQS将帮助开发者理解concurrent包及线程同步机制。
+Spring Cloud首先是一套快速搭建微服务的工具集。
 
 ## 线程同步
 
