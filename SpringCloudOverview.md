@@ -1,10 +1,10 @@
 # Spring Cloud体系简介
 
-Spring Cloud是Spring Source推出的一套快速搭建微服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。
+Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。
 
 ## 组件介绍
 
-在网上查看Spring Cloud的资料，通常会提到九大功能或组件，分别是分布式配置管理、服务发现注册、路由等。其实除去Spring Cloud官方项目外，有很多其他项目都是对Spring Cloud做的有益补充。
+Spring Cloud包含的组件很多，下面简单介绍一些重要的组件，其他组件是对Cloud的有益补充。
 
 #### 配置管理
 
@@ -26,7 +26,13 @@ Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的
 
 #### 路由网关
 
-Zuul
+Zuul在整个Cloud体系中的作用是服务的路由网关，负责服务的路由、权限控制、服务过滤等。看着是不是和Firefly-Server很像，其实Firefly-Server的架构设计思路和Zuul很像，并且发展方向也是Cloud中的网关角色。
+
+#### 断路器
+
+当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。Hystrix也是Netflix贡献的组件，可以提供很强的容错能力。后面我也将会专门研究下Hystrix。
+
+Netflix还贡献了负载均衡工具Ribbon、数据流聚合器Turbine（依赖AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
 
 ## 体系结构
 
@@ -36,7 +42,10 @@ Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的�
 
 [POC of Spring Cloud / Netflix OSS](https://github.com/Oreste-Luci/netflix-oss-example)
 
-这里我引用一下Git上的体系结构图：
+这里我引用一下Git上的体系结构图，并基于此图对数据流及组件作用做简单介绍：
 
-![netflix-oss-example](https://github.com/gulfer/gulfer.github.io/blob/master/pic/netflix-oss-example.png)
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/netflix-oss-example.png)
+
+
+    
 
