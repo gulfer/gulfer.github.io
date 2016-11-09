@@ -38,5 +38,5 @@ Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的�
 
 这里我引用一下Git上的体系结构图：
 
-
+![netflix-oss-example](https://github.com/gulfer/gulfer.github.io/blob/master/pic/netflix-oss-example.png)
 
