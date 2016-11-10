@@ -4,15 +4,19 @@ Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。�
 
 ## 组件介绍
 
-Spring Cloud包含的组件很多，下面简单介绍一些重要的组件，其他组件是对Cloud的有益补充。
+Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。Spring Cloud的Spring Cloud包含的组件很多，下面简单介绍一些重要的组件。
 
 #### 配置管理
 
-官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。
+官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。Spring Cloud Config Server是一个Spring Boot应用，因为内嵌了WEB Server（默认是Tomcat），因此可以直接通过命令启动，默认端口8888：
+
+```
+mvnw spring-boot:run
+```
 
 #### 消息总线
 
-官方提供的消息总线Spring Cloud Bus用户在集群中传播状态变化
+官方提供的消息总线Spring Cloud Bus用户在集群中传播状态变化。
 
 #### 安全
 
