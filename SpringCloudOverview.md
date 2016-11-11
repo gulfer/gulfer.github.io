@@ -4,7 +4,7 @@ Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。�
 
 ## 组件介绍
 
-Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。Spring Cloud的Spring Cloud包含的组件很多，下面简单介绍一些重要的组件。
+Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。Spring Cloud包含的组件很多，下面简单介绍一些重要的组件。
 
 #### 配置管理
 
@@ -13,20 +13,16 @@ Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种�
 ```
 mvnw spring-boot:run
 ```
+或直接执行jar
 
-#### 消息总线
+```
+java -jar zuul.jar
+```
+其他组件均可通过这两种方式执行。
 
-官方提供的消息总线Spring Cloud Bus用户在集群中传播状态变化。
+#### 服务发现
 
-#### 安全
-
-Spring Cloud Security是官方提供的安全控制工具，不过我没有使用过，猜测是基于Spring Security做的扩展。
-
-其他官方项目还有命令行工具Spring Cloud CLI、Spring Cloud Task等。不过作为一个完整的云平台工具包，其中那些由Netflix、Pivotal贡献的组件也非常重要。
-
-#### 服务发现注册
-
-Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的服务注册中心。后面我将会单独写一篇文章分析Eureka的原理及源码。
+Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的服务注册中心。Eureka的服务也是基于REST的，Spring Cloud通过Spring Boot对Eureka做了集成，服务会后面我将会单独写一篇文章分析Eureka的原理及源码。
 
 #### 路由网关
 
