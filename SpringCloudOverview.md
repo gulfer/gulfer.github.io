@@ -84,8 +84,8 @@ public class ApplicationA {
 
 Zuul在整个Cloud体系中的作用是服务的路由网关，负责服务的路由、权限控制、服务过滤等。Firefly-Server的架构设计思路和Zuul很像，发展方向也是Cloud中的网关角色。只不过Zuul本质上是个Servlet，附加功能通过Filter提供，但并不是Java Web应用中的Filter。
 
-Zuul架构图：
-![]()
+Zuul架构:
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/zuul.png)
 
 路由网关在确保内部微服务无状态的基础上，对外统一暴露RESTful API，集成Ribbon做服务负载均衡，更重要的是，作为统一入口，网关可以实现了权限验证、安全校验等功能。
 
@@ -93,13 +93,31 @@ Zuul架构图：
 
 #### 负载均衡
 
-Netflix贡献的Ribbon在Cloud中负责对服务进行负载均衡。上节提到的Zuul配置，
+Netflix贡献的Ribbon在Cloud中负责对服务进行软负载均衡。上节提到的Zuul配置，可用以下方式配置Ribbon的负载均衡策略：
+
+```
+# 最大重试次数（不包括首次请求）
+api.ribbon.MaxAutoRetries=1
+# 下一服务最大重试次数（不包括首次请求）
+api.ribbon.MaxAutoRetriesNextServer=1
+# 是否重试
+api.ribbon.OkToRetryOnAllOperations=true
+# 节点列表刷新间隔
+api.ribbon.ServerListRefreshInterval=1000
+# 连接超时
+api.ribbon.ConnectTimeout=2000
+# 读超时
+api.ribbon.ReadTimeout=10000
+# 节点
+api.ribbon.listOfServers=192.168.1.100:8001,192.168.1.101:8002
+```
+Ribbon可以和Eureka或Consul等服务发现组件结合使用，通过Eureka获取服务列表并选择要调用的服务。Ribbon提供了多种负载均衡策略，源码我没有读过，对其机制并不太了解，还需研究。
 
 #### 断路器
 
 当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。Hystrix也是Netflix贡献的组件，可以提供很强的容错能力。后面我也将会专门研究下Hystrix。
 
-Netflix还贡献了数据流聚合器Turbine（依赖AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
+Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
 
 ## 体系结构
 
