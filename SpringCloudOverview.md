@@ -10,6 +10,10 @@ Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的�
 
 [POC of Spring Cloud / Netflix OSS](https://github.com/Oreste-Luci/netflix-oss-example)
 
+这个Sample的架构是这样式的
+
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/netflix-oss-example.png)
+
 #### 配置管理
 
 官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。Spring Cloud Config Server是一个Spring Boot应用，因为内嵌了WEB Server（默认是Tomcat），因此可以直接通过命令启动，默认端口8888：
@@ -128,10 +132,14 @@ Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献�
 
 ## 体系结构
 
-这里我引用一下Git上的体系结构图，并基于此图对数据流及组件作用做简单介绍：
+这里将引用一个JHipster的体系结构图，并基于此图对数据流及组件作用做简单介绍：
 
-![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/netflix-oss-example.png)
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/microservice.png)
 
+JHipster是一个基于Node.js和Yeoman的java脚手架。JHipster整合了前端mvvm框架（Angular），前端构建工具（gulp）和服务端微服务框架（Spring Cloud）。利用这套脚手架工具，开发人员可以快速搭建端到端的微服务系统。不过我们这里不去介绍这套工具，仅仅是用下它的架构图来说明Spring Cloud各组件的位置和关系。
 
+外部请求访问系统某个服务时，需要先通过图的Edge Service，即上文提到的路由网关，通常我们会使用Zuul，后续的Firefly-Server将尝试在功能上覆盖Zuul并使用在Firefly提供的Cloud平台中。
+
+路由网关会通过读取Eureka获取服务配置，并根据路由规则实例化请求对象。请求对象作为HystrixCommand的子类，具备服务调用的监控功能，同时通过关联Ribbon，实现服务调用的负载均衡。
     
 
