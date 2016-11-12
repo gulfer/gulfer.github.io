@@ -89,6 +89,7 @@ public class ApplicationA {
 Zuul在整个Cloud体系中的作用是服务的路由网关，负责服务的路由、权限控制、服务过滤等。Firefly-Server的架构设计思路和Zuul很像，发展方向也是Cloud中的网关角色。只不过Zuul本质上是个Servlet，附加功能通过Filter提供，但并不是Java Web应用中的Filter。
 
 Zuul架构:
+
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/zuul.png)
 
 路由网关在确保内部微服务无状态的基础上，对外统一暴露RESTful API，集成Ribbon做服务负载均衡，更重要的是，作为统一入口，网关可以实现了权限验证、安全校验等功能。
@@ -117,7 +118,8 @@ api.ribbon.listOfServers=192.168.1.100:8001,192.168.1.101:8002
 ```
 Ribbon可以和Eureka或Consul等服务发现组件结合使用，通过Eureka获取服务列表并选择要调用的服务。Ribbon提供了多种负载均衡策略，源码我没有读过，对其机制并不太了解，还需研究。
 
-Ribbon架构
+Ribbon架构：
+
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/ribbon.png)
 
 图中的Edge Service可以理解为集成了Ribbon的Zuul之类的网关服务。
