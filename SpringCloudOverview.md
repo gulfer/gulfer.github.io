@@ -1,10 +1,16 @@
 # Spring Cloud体系简介
 
-Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。
+Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。所以Spring Boot也是公认的目前最流行的微服务框架。
 
 ## 组件介绍
 
 Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。Spring Cloud包含的组件很多，下面简单介绍一些重要的组件。
+
+Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的工程实现了开箱即用的依赖管理，组件之间只需要通过配置即可建立联系。
+
+我们可以在Github上下载项目集源码：
+
+[POC of Spring Cloud / Netflix OSS](https://github.com/Oreste-Luci/netflix-oss-example)
 
 #### 配置管理
 
@@ -12,6 +18,7 @@ Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种�
 
 ```
 mvnw spring-boot:run
+
 ```
 或直接执行jar
 
@@ -20,9 +27,59 @@ java -jar zuul.jar
 ```
 其他组件均可通过这两种方式执行。
 
+需要注意的是，本文中的例子均是基于刚才提到的Netflix OSS Example，这个项目集中的组件大部分都依赖这套Config Server，包括服务注册时获取Eureka的地址等，都需要通过Config Server获取相应的配置。
+
+[配置Repo](https://github.com/Oreste-Luci/netflix-oss-example-config-repo)
+
 #### 服务发现
 
-Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的服务注册中心。Eureka的服务也是基于REST的，Spring Cloud通过Spring Boot对Eureka做了集成，服务会后面我将会单独写一篇文章分析Eureka的原理及源码。
+Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的服务注册中心。Eureka的服务也是基于REST的，Spring Cloud通过Spring Boot对Eureka做了集成。使用Spring Boot启动Eureka的方法非常简单，需要配置@EnableEurekaServer注解：
+
+```
+@SpringBootApplication
+@EnableEurekaServer
+public class EurekaApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(EurekaApplication.class, args);
+    }
+}
+```
+并添加一些服务端的配置，Eureka服务端口指定为8761：
+
+```
+server:
+  port: 8761
+
+eureka:
+  client:
+    registerWithEureka: false
+    fetchRegistry: false
+    server:
+      waitTimeInMsWhenSyncEmpty: 0
+      
+spring:
+  application:
+    name: eureka-service
+```
+而客户端在发布服务时需要对应的配置@EnableDiscoveryClient：
+
+```
+@EnableAutoConfiguration
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableCircuitBreaker
+@EnableFeignClients(value = "service.a.*")
+@ComponentScan("service.a.*")
+public class ApplicationA {
+    public static void main(String[] args) {
+        SpringApplication.run(ApplicationA.class, args);
+    }
+}
+```
+启动时会将服务自动注册到Eureka，可以在Eureka自带的Dashboard中查看服务状态等信息：
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/Image%2012-11-2016%20at%2010.23%20AM.jpg)
+
+后面我将会单独写一篇文章分析Eureka的原理及源码。
 
 #### 路由网关
 
@@ -35,12 +92,6 @@ Zuul在整个Cloud体系中的作用是服务的路由网关，负责服务的�
 Netflix还贡献了负载均衡工具Ribbon、数据流聚合器Turbine（依赖AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
 
 ## 体系结构
-
-Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的工程实现了开箱即用的依赖管理，组件之间只需要通过配置即可建立联系。
-
-我们可以在Github上下载项目集源码：
-
-[POC of Spring Cloud / Netflix OSS](https://github.com/Oreste-Luci/netflix-oss-example)
 
 这里我引用一下Git上的体系结构图，并基于此图对数据流及组件作用做简单介绍：
 
