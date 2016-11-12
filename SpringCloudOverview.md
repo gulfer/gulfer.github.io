@@ -74,7 +74,7 @@ public class ApplicationA {
     }
 }
 ```
-启动时会将服务自动注册到Eureka，可以在Eureka自带的Dashboard中查看服务状态等信息：
+启动时会将服务自动注册到Eureka，可以在Eureka自带的dashboard中查看服务状态等信息：
 
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/ScreenShot_eureka.png)
 
@@ -113,9 +113,16 @@ api.ribbon.listOfServers=192.168.1.100:8001,192.168.1.101:8002
 ```
 Ribbon可以和Eureka或Consul等服务发现组件结合使用，通过Eureka获取服务列表并选择要调用的服务。Ribbon提供了多种负载均衡策略，源码我没有读过，对其机制并不太了解，还需研究。
 
+Ribbon架构
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/ribbon.png)
+
+图中的Edge Service可以理解为集成了Ribbon的Zuul之类的网关服务。
+
 #### 断路器
 
-当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。Hystrix也是Netflix贡献的组件，可以提供很强的容错能力。后面我也将会专门研究下Hystrix。
+当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。尤其是调用关系相对复杂的微服务系统内部，某些高并发的服务调用失败时如果没有隔离措施，整个系统都有可能被拖垮。Hystrix也是Netflix贡献的组件，可增强微服务系统的容错能力，并且自带了dashboard。
+
+Spring Cloud的源码中，Zuul就是通过继承HystrixCommand抽象来实现自己的RibbonCommand，包装了服务调用的具体实现，同时利用Hystrix完成服务的监控。后面也将会专门研究下Hystrix。
 
 Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
 
