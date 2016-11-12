@@ -96,9 +96,16 @@ Zuul架构:
 
 使用时仅需要添加Zuul和Eureka依赖，在主应用类中配置@EnableZuulProxy注解，并在配置文件中指定应用名及端口即可。Zuul作为网关，可以配置服务的入口路径以及重定向路径、配置反向代理及负载均衡策略、配置URL重写等，俨然nginx。
 
+比如添加如下配置，则可接收并转发特定路径模式的请求到服务节点列表，这就用到下节将要提到的负载均衡功能：
+
+```
+zuul.routes.api.path=/ff/\*\*
+api.ribbon.listOfServers=192.168.1.100:8001,192.168.1.101:8002
+```
+
 #### 负载均衡
 
-Netflix贡献的Ribbon在Cloud中负责对服务进行软负载均衡。上节提到的Zuul配置，可用以下方式配置Ribbon的负载均衡策略：
+Netflix贡献的Ribbon在Cloud中负责对服务进行软负载均衡。上节提到的Zuul配置中，可添加以下Ribbon相关配置实现负载均衡：
 
 ```
 # 最大重试次数（不包括首次请求）
@@ -122,15 +129,15 @@ Ribbon架构：
 
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/ribbon.png)
 
-图中的Edge Service可以理解为集成了Ribbon的Zuul之类的网关服务。
+图中的Edge Service就可以理解为集成了Ribbon的Zuul之类的网关服务。
 
 #### 断路器
 
-当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。尤其是调用关系相对复杂的微服务系统内部，某些高并发的服务调用失败时如果没有隔离措施，整个系统都有可能被拖垮。Hystrix也是Netflix贡献的组件，可增强微服务系统的容错能力，并且自带了dashboard。
+当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。尤其是调用关系相对复杂的微服务系统内部，某些热点服务调用失败时如果没有隔离措施，整个系统都有可能被拖垮。Hystrix也是Netflix贡献的组件，可增强微服务系统的容错能力，并且自带了dashboard。
 
-Spring Cloud的源码中，Zuul就是通过继承HystrixCommand抽象来实现自己的RibbonCommand，包装了服务调用的具体实现，同时利用Hystrix完成服务的监控。后面也将会专门研究下Hystrix。
+从Spring Cloud的源码看其集成方式，Zuul是通过继承HystrixCommand抽象来实现自己的RibbonCommand，包装了服务调用的具体实现，达到使用Hystrix完成服务监控的目的。后面也将会专门研究下Hystrix。
 
-Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
+此外，Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
 
 ## 体系结构
 
@@ -142,7 +149,7 @@ JHipster是一个基于Node.js和Yeoman的java工程脚手架。JHipster整合�
 
 外部请求访问系统某个服务时，需要先通过图的Edge Service，即上文提到的路由网关，通常我们会使用Zuul，后续的Firefly-Server将尝试在功能上覆盖Zuul并使用在Firefly提供的Cloud平台中。
 
-路由网关会通过读取Eureka获取服务配置，并根据路由规则实例化请求对象。请求对象作为HystrixCommand的子类，具备服务调用的监控功能，同时通过关联Ribbon，实现服务调用的负载均衡。而服务之间的调用，也需要先通过Eureka获取服务信息再发起请求，过程类似。
+路由网关会通过读取Eureka获取服务配置，并根据路由规则封装请求的HystrixCommand对象，使其具备服务调用的监控功能，同时通过关联Ribbon，实现服务调用的负载均衡。而服务之间的调用，也需要先通过Eureka获取服务信息再通过Ribbon发起请求，过程类似。
 
 ## 总结
 
