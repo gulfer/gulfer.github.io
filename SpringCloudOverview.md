@@ -1,6 +1,6 @@
 # Spring Cloud体系简介
 
-Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。所以Spring Boot也是公认的目前最流行的微服务框架。
+Spring Cloud是Spring Source推出的一套快速搭建微服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。所以Spring Cloud也是公认的目前最流行的微服务框架。
 
 ## 组件介绍
 
@@ -134,12 +134,26 @@ Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献�
 
 这里将引用一个JHipster的体系结构图，并基于此图对数据流及组件作用做简单介绍：
 
-![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/microservice.png)
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/cloud.png)
 
-JHipster是一个基于Node.js和Yeoman的java脚手架。JHipster整合了前端mvvm框架（Angular），前端构建工具（gulp）和服务端微服务框架（Spring Cloud）。利用这套脚手架工具，开发人员可以快速搭建端到端的微服务系统。不过我们这里不去介绍这套工具，仅仅是用下它的架构图来说明Spring Cloud各组件的位置和关系。
+JHipster是一个基于Node.js和Yeoman的java脚手架。JHipster整合了前端mvvm框架（Angular），前端构建工具（gulp）和服务端微服务框架（Spring Cloud）。利用这套脚手架工具，开发人员可以快速搭建端到端的微服务系统。JHipster脚手架还会帮我们集成ELK等日志分析工具，当然我们也可以自己集成。不过我们这里不去介绍这套工具，仅仅是用下它的架构图来说明Spring Cloud各组件的位置和关系。
 
 外部请求访问系统某个服务时，需要先通过图的Edge Service，即上文提到的路由网关，通常我们会使用Zuul，后续的Firefly-Server将尝试在功能上覆盖Zuul并使用在Firefly提供的Cloud平台中。
 
-路由网关会通过读取Eureka获取服务配置，并根据路由规则实例化请求对象。请求对象作为HystrixCommand的子类，具备服务调用的监控功能，同时通过关联Ribbon，实现服务调用的负载均衡。
+路由网关会通过读取Eureka获取服务配置，并根据路由规则实例化请求对象。请求对象作为HystrixCommand的子类，具备服务调用的监控功能，同时通过关联Ribbon，实现服务调用的负载均衡。而服务之间的调用，也需要先通过Eureka获取服务信息再发起请求，过程类似。
+
+## 总结
+
+微服务是一种服务架构，Firefly将致力于基于这套架构及相关技术搭建公共的移动端云服务，而Spring Cloud就是我们的瑞士军刀。虽然Spring Cloud的文档和资料还并不算特别丰富，学习成本不低且错误排查不易，但是目前已经是最为成熟的微服务框架，相关配套组件也比较健全，相信未来会更加完善。好东西太多了。。。
+
+照例推荐一些学习资源，文中提到了一些Github资源，不再列举：
+
+[Spring Cloud官方](http://projects.spring.io/spring-cloud/spring-cloud.html)
     
+[这位的博客值得一读](http://blog.didispace.com/)
+
+[Spring Cloud Netflix中文文档](http://www.xyuu.cn/spring-cloud-netflix-zhcn.html)
+
+[JHipster官方](https://jhipster.github.io/)
+
 
