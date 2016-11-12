@@ -4,11 +4,9 @@ Spring Cloud是Spring Source推出的一套快速搭建云服务的工具集。�
 
 ## 组件介绍
 
-Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。Spring Cloud包含的组件很多，下面简单介绍一些重要的组件。
+Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。简单的说，Eureka提供服务发现注册功能；通过Ribbon或Feign实现服务均衡负载；使用Spring Cloud Config作为配置管理；使用Hystrix作为断路器（或者叫熔断器）保证服务可用性。
 
-Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的工程实现了开箱即用的依赖管理，组件之间只需要通过配置即可建立联系。
-
-我们可以在Github上下载项目集源码：
+Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的工程实现了开箱即用的依赖管理，组件之间只需要通过配置即可建立联系。我们可以在Github上下载项目集源码：
 
 [POC of Spring Cloud / Netflix OSS](https://github.com/Oreste-Luci/netflix-oss-example)
 
@@ -77,19 +75,31 @@ public class ApplicationA {
 }
 ```
 启动时会将服务自动注册到Eureka，可以在Eureka自带的Dashboard中查看服务状态等信息：
-![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/Image%2012-11-2016%20at%2010.23%20AM.jpg)
+
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/ScreenShot_eureka.png)
 
 后面我将会单独写一篇文章分析Eureka的原理及源码。
 
 #### 路由网关
 
-Zuul在整个Cloud体系中的作用是服务的路由网关，负责服务的路由、权限控制、服务过滤等。看着是不是和Firefly-Server很像，其实Firefly-Server的架构设计思路和Zuul很像，并且发展方向也是Cloud中的网关角色。
+Zuul在整个Cloud体系中的作用是服务的路由网关，负责服务的路由、权限控制、服务过滤等。Firefly-Server的架构设计思路和Zuul很像，发展方向也是Cloud中的网关角色。只不过Zuul本质上是个Servlet，附加功能通过Filter提供，但并不是Java Web应用中的Filter。
+
+Zuul架构图：
+![]()
+
+路由网关在确保内部微服务无状态的基础上，对外统一暴露RESTful API，集成Ribbon做服务负载均衡，更重要的是，作为统一入口，网关可以实现了权限验证、安全校验等功能。
+
+使用时仅需要添加Zuul和Eureka依赖，在主应用类中配置@EnableZuulProxy注解，并在配置文件中指定应用名及端口即可。Zuul作为网关，可以配置服务的入口路径以及重定向路径、配置反向代理及负载均衡策略、配置URL重写等，俨然nginx。
+
+#### 负载均衡
+
+Netflix贡献的Ribbon在Cloud中负责对服务进行负载均衡。上节提到的Zuul配置，
 
 #### 断路器
 
 当服务出现故障的时候，我们需要有一种机制对其进行监控，同时妥善的处理对该服务的调用，避免阻塞式的等待，造成资源占用等问题。Hystrix也是Netflix贡献的组件，可以提供很强的容错能力。后面我也将会专门研究下Hystrix。
 
-Netflix还贡献了负载均衡工具Ribbon、数据流聚合器Turbine（依赖AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
+Netflix还贡献了数据流聚合器Turbine（依赖AMQP），而Pivotal贡献了一些大数据分析相关的组件，如Spring Cloud Data Flow等。Spring Cloud正式整合了所有的这些优秀项目，形成了完整的云服务体系。
 
 ## 体系结构
 
