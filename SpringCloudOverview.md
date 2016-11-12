@@ -1,22 +1,22 @@
 # Spring Cloud体系简介
 
-Spring Cloud是Spring Source推出的一套快速搭建微服务的工具集。在使用Spring Boot作为应用搭建和依赖管理基础的同时，引入了Netflix贡献的服务发现注册、路由网关、断路器等组件，实现了Spring Cloud的完整架构体系。所以Spring Cloud也是公认的目前最流行的微服务框架。
+Spring Cloud是Spring推出的一套快速搭建微服务的工具集。在使用Spring Boot作为应用搭建和依赖管理的基础上，引入了Netflix贡献的服务发现注册、路由网关、负载均衡、断路器等组件，并作为了Spring Cloud的子项目，从而搭建起Spring Cloud的完整架构体系。Spring Cloud是公认的目前最流行的微服务框架。
 
 ## 组件介绍
 
-Spring Cloud很大程度上是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。简单的说，Eureka提供服务发现注册功能；通过Ribbon或Feign实现服务均衡负载；使用Spring Cloud Config作为配置管理；使用Hystrix作为断路器（或者叫熔断器）保证服务可用性。
+Spring Cloud是基于Spring Boot的，Spring Boot提供了一种构建应用、组织依赖的规范，而Spring Cloud中的组件就是依照这种规范存在并相互联系的。简单的介绍一些主要组件，Eureka提供服务发现注册功能；通过Ribbon实现服务均衡负载；使用Spring Cloud Config作为配置管理；使用Hystrix作为断路器（或者叫熔断器）保证服务可用性。这些组件都不是体系中唯一的选择，只不过使用默认组件将省去很多集成成本。
 
 Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的工程实现了开箱即用的依赖管理，组件之间只需要通过配置即可建立联系。我们可以在Github上下载项目集源码：
 
 [POC of Spring Cloud / Netflix OSS](https://github.com/Oreste-Luci/netflix-oss-example)
 
-这个Sample的架构是这样式的
+这个Sample的架构是这样式的，我们将逐一介绍一些主要组件：
 
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/netflix-oss-example.png)
 
 #### 配置管理
 
-官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。Spring Cloud Config Server是一个Spring Boot应用，因为内嵌了WEB Server（默认是Tomcat），因此可以直接通过命令启动，默认端口8888：
+官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。Spring Cloud Config Server是一个Spring Boot应用，因为内嵌了WEB Server（默认是Tomcat），所以可以直接通过命令启动，默认端口8888：
 
 ```
 mvnw spring-boot:run
@@ -27,15 +27,15 @@ mvnw spring-boot:run
 ```
 java -jar zuul.jar
 ```
-其他组件均可通过这两种方式执行。
+这些可以独立提供服务的基于Spring Boot的组件均可通过这两种方式执行，如Eureka、路由网关等，包括服务本身。
 
-需要注意的是，本文中的例子均是基于刚才提到的Netflix OSS Example，这个项目集中的组件大部分都依赖这套Config Server，包括服务注册时获取Eureka的地址等，都需要通过Config Server获取相应的配置。
+需要注意的是，本文中的例子均是基于刚才提到的Netflix OSS Example，这个项目集中的组件大部分都依赖这套Config Server，包括服务注册时获取Eureka的地址等，都需要通过Config Server获取相应的配置。以下是例子中Config Server提供的配置：
 
 [配置Repo](https://github.com/Oreste-Luci/netflix-oss-example-config-repo)
 
 #### 服务发现
 
-Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的服务注册中心。Eureka的服务也是基于REST的，Spring Cloud通过Spring Boot对Eureka做了集成。使用Spring Boot启动Eureka的方法非常简单，需要配置@EnableEurekaServer注解：
+服务的注册和发现基本上是微服务架构中最为核心的部分。Eureka是Netflix贡献的服务发现注册组件，可以对标Dubbo基于ZK的服务注册中心，同样包括Server及Client两部分。Eureka自己的服务也是基于REST的，Spring Cloud中使用Eureka的方法非常简单，Server需要配置@EnableEurekaServer注解：
 
 ```
 @SpringBootApplication
@@ -63,7 +63,7 @@ spring:
   application:
     name: eureka-service
 ```
-而客户端在发布服务时需要对应的配置@EnableDiscoveryClient：
+而作为服务提供方需要对应的配置@EnableDiscoveryClient，事实上配置了此注解的服务也是服务的消费方，具备发现服务的能力：
 
 ```
 @EnableAutoConfiguration
@@ -136,7 +136,7 @@ Netflix还贡献了数据流聚合器Turbine（使用AMQP），而Pivotal贡献�
 
 ![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/cloud.png)
 
-JHipster是一个基于Node.js和Yeoman的java脚手架。JHipster整合了前端mvvm框架（Angular），前端构建工具（gulp）和服务端微服务框架（Spring Cloud）。利用这套脚手架工具，开发人员可以快速搭建端到端的微服务系统。JHipster脚手架还会帮我们集成ELK等日志分析工具，当然我们也可以自己集成。不过我们这里不去介绍这套工具，仅仅是用下它的架构图来说明Spring Cloud各组件的位置和关系。
+JHipster是一个基于Node.js和Yeoman的java工程脚手架。JHipster整合了前端mvvm框架（Angular），前端构建工具（gulp）和服务端微服务框架（Spring Cloud）。JHipster脚手架还会帮我们集成ELK等日志分析工具，当然我们也可以自己集成。利用这套脚手架工具，开发人员可以快速搭建端到端的微服务系统。不过我们这里不去介绍这套工具，仅仅是借用它的架构图来说明Spring Cloud各组件的位置和关系。
 
 外部请求访问系统某个服务时，需要先通过图的Edge Service，即上文提到的路由网关，通常我们会使用Zuul，后续的Firefly-Server将尝试在功能上覆盖Zuul并使用在Firefly提供的Cloud平台中。
 
@@ -144,9 +144,9 @@ JHipster是一个基于Node.js和Yeoman的java脚手架。JHipster整合了前�
 
 ## 总结
 
-微服务是一种服务架构，Firefly将致力于基于这套架构及相关技术搭建公共的移动端云服务，而Spring Cloud就是我们的瑞士军刀。虽然Spring Cloud的文档和资料还并不算特别丰富，学习成本不低且错误排查不易，但是目前已经是最为成熟的微服务框架，相关配套组件也比较健全，相信未来会更加完善。好东西太多了。。。
+微服务是一种技术层面的服务架构，Firefly将致力于基于这套架构及相关技术搭建公共的移动端云服务，而Spring Cloud就是我们做这件事的瑞士军刀。虽然Spring Cloud的文档和资料还并不算特别丰富、学习成本不低、错误排查不易，但是目前已经是最为成熟的微服务框架，相关配套组件也比较健全，相信未来会更加完善。
 
-照例推荐一些学习资源，文中提到了一些Github资源，不再列举：
+照例推荐一些学习资源，文中提到的Github资源就不再列举了：
 
 [Spring Cloud官方](http://projects.spring.io/spring-cloud/spring-cloud.html)
     
