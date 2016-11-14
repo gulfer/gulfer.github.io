@@ -16,7 +16,7 @@ Netflix提供了一个Spring Cloud的完整Sample，基于Spring Boot创建的�
 
 #### 配置管理
 
-官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。Spring Cloud Config Server是一个Spring Boot应用，因为内嵌了WEB Server（默认是Tomcat），所以可以直接通过命令启动，默认端口8888：
+Spring官方提供的配置管理服务Spring Cloud Config，支持本地、Git以及SVN等几种方式的配置管理方式，不过当然我们更习惯使用ZK或Consul，Spring Cloud项目集中也分别提供了专门封装ZK和Consul操作的项目。Spring Cloud Config Server是一个Spring Boot应用，因为内嵌了WEB Server（默认是Tomcat），所以可以直接通过命令启动，默认端口8888：
 
 ```
 mvnw spring-boot:run
@@ -27,9 +27,9 @@ mvnw spring-boot:run
 ```
 java -jar zuul.jar
 ```
-这些可以独立提供服务的基于Spring Boot的组件均可通过这两种方式执行，如Eureka、路由网关等，包括服务本身。
+这些可以独立提供服务的基于Spring Boot的组件均可通过这两种方式执行，如Eureka、路由网关等，包括服务本身。这种启动形式为服务快速发布提供了很大便利，不过我们也可以发布到自己指定的中间件上。
 
-需要注意的是，本文中的例子均是基于刚才提到的Netflix OSS Example，这个项目集中的组件大部分都依赖这套Config Server，包括服务注册时获取Eureka的地址等，都需要通过Config Server获取相应的配置。以下是例子中Config Server提供的配置：
+本文中的例子均是基于刚才提到的Netflix OSS Example，这个项目集中的组件大部分都依赖这套Config Server，包括服务注册时获取Eureka的地址等，都需要通过Config Server获取相应的配置。以下是例子中Config Server提供的配置：
 
 [配置Repo](https://github.com/Oreste-Luci/netflix-oss-example-config-repo)
 
@@ -63,7 +63,7 @@ spring:
   application:
     name: eureka-service
 ```
-而作为服务提供方需要对应的配置@EnableDiscoveryClient，事实上配置了此注解的服务也是服务的消费方，具备发现服务的能力：
+而作为服务提供方需要对应的配置@EnableDiscoveryClient，事实上配置了此注解的服务也是服务的消费方，具备发现其他服务的能力：
 
 ```
 @EnableAutoConfiguration
@@ -105,7 +105,7 @@ api.ribbon.listOfServers=192.168.1.100:8001,192.168.1.101:8002
 
 #### 负载均衡
 
-Netflix贡献的Ribbon在Cloud中负责对服务进行软负载均衡。上节提到的Zuul配置中，可添加以下Ribbon相关配置实现负载均衡：
+Netflix贡献的Ribbon在Cloud中负责对服务进行软负载均衡，在Spring Cloud体系下需要集成到Zuul或业务服务中。如上节提到的Zuul配置，可添加以下Ribbon相关配置实现负载均衡：
 
 ```
 # 最大重试次数（不包括首次请求）
@@ -153,7 +153,7 @@ JHipster是一个基于Node.js和Yeoman的java工程脚手架。JHipster整合�
 
 ## 总结
 
-微服务是一种技术层面的服务架构，Firefly将致力于基于这套架构及相关技术搭建公共的移动端云服务，而Spring Cloud就是我们做这件事的瑞士军刀。虽然Spring Cloud的文档和资料还并不算特别丰富、学习成本不低、错误排查不易，但是目前已经是最为成熟的微服务框架，相关配套组件也比较健全，相信未来会更加完善。
+微服务是一种技术层面的服务架构，Firefly将致力于基于这套架构及相关技术搭建公共的移动端云服务，而Spring Cloud就是我们做这件事的瑞士军刀。虽然Spring Cloud的文档和资料还并不算特别丰富、学习成本不低、错误排查不易，但是目前已经是最为成熟的微服务框架，相关配套组件也比较健全，并且所有组件都很容易通过Docker来部署，所以相信未来应用的会更加广泛，也会更加完善。
 
 照例推荐一些学习资源，文中提到的Github资源就不再列举了：
 
