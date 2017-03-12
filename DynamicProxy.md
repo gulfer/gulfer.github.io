@@ -1,43 +1,165 @@
 # Java动态代理
 
-代理模式通常被我们分为静态代理和动态代理，静态代理的委托类和代理类在编译期就已经确定，而动态代理的委托类仍然是编译期确定，但代理类就是运行期动态生成的了。本文将简单介绍Java动态代理使用的场景及几种创建动态代理的方式。
+代理模式通常被我们分为静态代理和动态代理，静态代理的委托类和代理类在编译期就已经确定，而动态代理的委托类仍然是编译期确定，但代理类就是运行期动态生成的了。正好最近在项目中应用到了动态代理的技术，就顺便总结下Java动态代理使用的场景及几种创建动态代理的方式。
 
 ## 为什么要使用动态代理
 
-不管实现的功能是否简单，软件都是一个复杂系统，有时候这种复杂并不体现在代码量上，而是体现在架构设计上。往往几行代码就可以实现我们所需要的功能，但除了功能性之外，我们还需要考虑很多其他方面：工期、性能、可用性、安全性、合规性、成本、扩展性、易用性。
+GoF对代理模式的适用性是这么描述的：Remote Proxy（远程代理），个人理解主要应用在实现网络通信模型时，如CXF等WebService框架会为远程对象创建本地代理对象；Virtual Proxy（虚代理），可作为一种延迟实例化或调用的方法，比如流媒体播放等场景；Protection Proxy（保护代理），对委托对象提供访问控制，是一种保护机制。
 
-所有这些要素很有可能是相互矛盾的，或者说一定会有矛盾，所以架构设计的过程更多的是权衡取舍的过程，这就是设计架构的原则。这些原则是在一定层面上抽象的，不同的软件项目架构方法会有不同，但这些抽象的原则是相同的。我们允许在进行架构设计的时候，针对这些原则提出用什么方法来实现，并且不断通过学习来行程特定领域的方法论，但架构的原则是要牢记的。
+See [Proxy pattern](https://en.wikipedia.org/wiki/Proxy_pattern)
 
-我的建议是，在设计实现某个功能时，如果没有形成合理架构的习惯或者说惯性，那么把上面提到的原则列个表格：
-
-|   | 工期 | 性能 | 可用性 | 安全性 | 合规性 | 成本 | 扩展性 | 易用性 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 约束 | 1周 | xx并发xxtps | 错误率、RPO/RTO | XSS、CSRF。。 | - | - | 后续可能增加的功能 | 操作步骤 |
-| 方法 |  | 方法1 | 方法2 | 方法3、4 | - | - | 方法5 | 方法6 |
-
-这只是我个人总结一个将架构原则具象化的方法，是概要设计的简化版，用来提醒自己需要在哪些方面注意。列出方法往往不是最困难的，我们经常遇到性能和安全性的约束指标相冲突，这时候就必须做方法的折中选择；扩展性往往会令我们过度设计，谁又能准确预知后面可能的需求；甚至性能本身，时间和空间如何取舍，这些才是最难的。这些真的需要一定的开发功底和经验积累。
-
-进行软件架构设计还会面临很多具体问题，如技术选型、建模等。但这篇文章的立意是描述抽象的原则，架构的架构，不同系统涉及的架构方法太多了，我没有能力列举。
+而动态代理和静态代理本质上只是代理类实现的阶段不同，进而提供了更大的灵活性，在增加**额外**功能的同时，对原始代码透明，我认为这就是我们使用动态代理最主要的理由。
 
 ## 动态代理的原理
 
-团队管理也是有架构的。我仍然延续之前的思路，提出抽象的管理原则，不论述方法。其实这完全是迫不得已，因为我并不知道什么具体的管理方法，完全是门外汉。而我胆敢写下一些管理的思路，其实是前一段时间看了《商业的本质》，这本书第一次为我勾勒了管理的架构轮廓。
+或许各种动态代理的实现方法在实现细节上存在差异，但原理基本都是一样的，就是运行时生成代理类的字节码。我们以JDK提供的动态代理机制为例做个简单说明，动态代理的例子网上太多了，这里不对写法上做过多描述：
 
-首先是考虑团队的工作氛围，通过让所有团队成员拥有共同的使命，形成团结、积极的工作氛围，让每个人清楚我们正在做的是一件多么有意义的事情，尽管可能未必如此。形成这样的氛围，需要管理者具有出众的领导力，体现在对下属的理解和体谅、称为下属的“首席解释官”、为下属解决困难而不是创造困难等等。
+业务接口及实现类：
 
-第二是正确的处理挫折。一定不能回避挫折，要承认失败，正确的面对失败；要确保团队中核心人才的稳定性，这是反攻的前提；要认真的对每次挫折进行影响分析，并根据分析重新制定战略；不要杞人忧天。
+```
+interface A {
 
-第三是关注增长。对于软件开发团队来说，我理解为关注用户的反馈，在产品迭代升级的过程中，是否对用户产生了效益。书中对于增长，第一个建议就是引入新鲜血液，而我对此的理解，也并不仅限于招聘新人，而是引入新的思想或新的技术。所以作为软件开发团队，时刻保持技术的敏感度是非常重要的，这关系到增长。第二个建议是集中资源，包括人力和财力资源，集中到最有价值的工作上去。第三个建议是每个人都参与到“渐进式”的创新中，而不仅仅是一两个人的事，每个团队成员都要把创新作为自己的工作内容。第四个是待遇问题，有时候这并不是我们能左右的，但是如果把待遇和公司的认可，就是可以施行的了，比如让一些优秀的人才站到台前，给他们更广阔的空间。
+	void doSomething();
 
-第四是管理好市场营销。这是纯技术开发团队最不擅长的了，但这点确实非常非常重要。营销的前提仍然是产品过硬，如果对产品有信心，那么营销时就会有底气。再就是对于初创期的技术团队，或是遇到无法逃避的营销任务，要克服抵触心态，团队需要依靠营销来生存。
+}
 
-第五是危机管理。我将危机管理延伸为用户反馈管理。“罗辑思维”的罗胖之前是做危机公关的，他的建议是在现在这个互联网时代任何危机预案都是没有意义的，因为无论怎么去预防和控制，危机来的都会比预想的猛烈，对此我深表认同。但是我不认为必要的用户反馈管理也是没有意义的，毕竟很多时候我们可以从用户反馈中感受到危机的端倪。
+class Impl implements A {
 
-以上是《商业的本质》给我的启示，我去掉了一些与我当前工作无关的内容，作为我个人的管理入门架构。这些仍然是原则性的概念，而不是具体的方法，方法就像一个线程池，容量越大，我就能予取予求。
+	@Override
+	public void doSomething() {
+		System.out.println("do something");
+	}
+}
+```
+
+代理类：
+
+```
+class Proxy implements InvocationHandler {
+
+	private Object target;
+
+	public void setTarget(Object target) {
+		this.target = target;
+	}
+
+	@Override
+	public Object invoke(Object proxy, Method method, Object[] args) 
+			throws Throwable {
+		System.out.println("before");
+		Object ret = method.invoke(target, args);
+		System.out.println("after");
+		return ret;
+	}
+
+}
+```
+
+代理类使用：
+
+```
+public static void main(String[] args) {
+		A a = new Impl();
+		Proxy proxy = new Proxy();
+		proxy.setTarget(a);
+		A a1 = (A) java.lang.reflect.Proxy.newProxyInstance(a.getClass().getClassLoader(), 
+				a.getClass().getInterfaces(),
+				proxy);
+		a1.doSomething();
+	}
+```
+第一个需要关注的是InvocationHandler接口，动态代理类会实现此接口，接口唯一的方法：
+
+`Object invoke(Object proxy, Method method, Object[] args) throws Throwable`
+
+形参proxy是被代理对象，method是要调用的被代理对象的方法，args就是调用方法接受的参数数组。在代理类的代码中我们可以看到并未使用被代理对象，而是直接在调用方法前后增加了输出。
+
+第二个需要关注的就是创建动态代理的方法，最简单的就是使用Proxy.newProxyInstance方法：
+
+`public static Object newProxyInstance(ClassLoader loader,
+                                          Class<?>[] interfaces,
+                                          InvocationHandler h)
+        throws IllegalArgumentException`
+
+loader是指定加载代理对象的classloader，interfaces是被代理对象实现的接口数组，这个数组的最大长度被限制为65535，h是实现InvocationHandler接口的代理对象。
+
+查看newProxyInstance方法可以看到代理对象是如何被创建的：
+
+跳过追溯过程直接查看生成代理类的关键代码：
+
+```
+private static Class<?> getProxyClass0(ClassLoader loader,
+                                           Class<?>... interfaces) {
+        if (interfaces.length > 65535) {
+            throw new IllegalArgumentException("interface limit exceeded");
+        }
+
+        // If the proxy class defined by the given loader implementing
+        // the given interfaces exists, this will simply return the cached copy;
+        // otherwise, it will create the proxy class via the ProxyClassFactory
+        return proxyClassCache.get(loader, interfaces);
+    }
+```
+其中proxyClassCache是一个WeakCache实例，对代理类对象进行缓存：
+
+```
+/**
+     * a cache of proxy classes
+     */
+private static final WeakCache<ClassLoader, Class<?>[], Class<?>>
+        proxyClassCache = new WeakCache<>(new KeyFactory(), new ProxyClassFactory());
+```
+
+重点在于这些Class是如何创建并被缓存的，省略掉WeakCache中的代码，直接定位我们关注点，即ProxyClassFactory类的apply方法：
+
+```
+...
+			String proxyName = proxyPkg + proxyClassNamePrefix + num;
+
+            /*
+             * Generate the specified proxy class.
+             */
+            byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
+                proxyName, interfaces, accessFlags);
+            try {
+                return defineClass0(loader, proxyName,
+                                    proxyClassFile, 0, proxyClassFile.length);
+            } catch (ClassFormatError e) {
+                /*
+                 * A ClassFormatError here means that (barring bugs in the
+                 * proxy class generation code) there was some other
+                 * invalid aspect of the arguments supplied to the proxy
+                 * class creation (such as virtual machine limitations
+                 * exceeded).
+                 */
+                throw new IllegalArgumentException(e.toString());
+            }
+...
+```
+动态代理类的字节码是通过ProxyGenerator.generateProxyClass生成的，而Class对象又是通过defineClass0方法加载到classloader并创建。了解前者的机制需要查看sun.misc.ProxyGenerator的源码，而后者是native方法。另一个有趣的事情是我们创建的代理类的Class是$Proxy0（数字），这是因为这个类型是虚拟机动态创建的，它会实现在创建代理类时传入的接口数组。
+
+有了Class就可以创建代理类的实例了，回到newProxyInstance方法，可以看到对象的实例化实际上仍然是通过构造方法执行的，只不过这个构造方法比较特别，它的入参是我们之前创建的InvocationHandler对象，显然这个构造方法也是ProxyGenerator动态创建的。
+
+```
+final Constructor<?> cons = cl.getConstructor(constructorParams);
+            final InvocationHandler ih = h;
+            if (!Modifier.isPublic(cl.getModifiers())) {
+                AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                    public Void run() {
+                        cons.setAccessible(true);
+                        return null;
+                    }
+                });
+            }
+            return cons.newInstance(new Object[]{h});
+```
+至此动态代理的创建过程才真正完成。
 
 ## 创建动态代理的方式及对比
 
-即使是《失控》中提到的蜂群，在杂乱无章的行动背后也有着自己的逻辑和架构。架构要发挥他正面的指导意义，就需要我们不断的学习和总结，并将无意识变为有意识的控制。严格来说这不是一篇技术博客了，而是一种对自己的提醒，提醒自己在工作中把握关键原则，有架构的意识。
+目前比较主流的创建动态代理的方式可以说有两种：一是上文介绍的JDK动态代理，二是通过直接操作字节码创建动态代理，如ASM、cglib、Javassist等。
+
+CXF Spring cglib
 
 
 
