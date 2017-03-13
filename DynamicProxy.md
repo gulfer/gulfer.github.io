@@ -12,7 +12,7 @@ See [Proxy pattern](https://en.wikipedia.org/wiki/Proxy_pattern)
 
 ## 动态代理的原理
 
-或许各种动态代理的实现方法在实现细节上存在差异，但原理基本都是一样的，就是运行时生成代理类的字节码。我们以JDK提供的动态代理机制为例做个简单说明，动态代理的例子网上太多了，这里不对写法上做过多描述：
+或许各种动态代理的实现方法在实现细节上存在差异，但原理基本都是一样的，就是运行时生成代理类的字节码。我们以JDK提供的动态代理机制为例做个简单说明，动态代理的例子网上太多了，这里不对写法上做过多描述。
 
 业务接口及实现类：
 
@@ -83,9 +83,7 @@ public static void main(String[] args) {
 
 loader是指定加载代理对象的classloader，interfaces是被代理对象实现的接口数组，这个数组的最大长度被限制为65535，h是实现InvocationHandler接口的代理对象。
 
-查看newProxyInstance方法可以看到代理对象是如何被创建的：
-
-跳过追溯过程直接查看生成代理类的关键代码：
+查看下newProxyInstance方法可以看到代理对象是如何被创建的，跳过追溯过程直接查看生成代理类的关键代码：
 
 ```
 private static Class<?> getProxyClass0(ClassLoader loader,
@@ -136,9 +134,9 @@ private static final WeakCache<ClassLoader, Class<?>[], Class<?>>
             }
 ...
 ```
-动态代理类的字节码是通过ProxyGenerator.generateProxyClass生成的，而Class对象又是通过defineClass0方法加载到classloader并创建。了解前者的机制需要查看sun.misc.ProxyGenerator的源码，而后者是native方法。另一个有趣的事情是我们创建的代理类的Class是$Proxy0（数字），这是因为这个类型是虚拟机动态创建的，它会实现在创建代理类时传入的接口数组。
+动态代理类的字节码是通过ProxyGenerator.generateProxyClass生成的，而Class对象又是通过defineClass0方法加载到classloader并创建。了解前者的机制需要查看sun.misc.ProxyGenerator的源码，而后者是native方法。另一个有趣的事情是我们创建的代理类的Class是$Proxy（数字），这是因为这个类型是虚拟机动态创建的，它会实现在创建代理类时传入的接口数组。
 
-有了Class就可以创建代理类的实例了，回到newProxyInstance方法，可以看到对象的实例化实际上仍然是通过构造方法执行的，只不过这个构造方法比较特别，它的入参是我们之前创建的InvocationHandler对象，显然这个构造方法也是ProxyGenerator动态创建的。
+有了Class就可以创建代理类的实例了，回到newProxyInstance方法，可以看到对象的实例化实际上仍然是通过构造方法执行的，只不过这个构造方法比较特别，它的入参是我们之前创建的InvocationHandler对象，显然这个构造方法也是ProxyGenerator动态创建的。有兴趣的话可以反编译字节码，其实除了生成这个构造方法外，还默认生成了hashCode、toString、equals三个方法，当然还有接口方法。
 
 ```
 final Constructor<?> cons = cl.getConstructor(constructorParams);
@@ -155,12 +153,31 @@ final Constructor<?> cons = cl.getConstructor(constructorParams);
 ```
 至此动态代理的创建过程才真正完成。
 
-## 创建动态代理的方式及对比
+## 动态代理的实现方式及对比
 
-目前比较主流的创建动态代理的方式可以说有两种：一是上文介绍的JDK动态代理，二是通过直接操作字节码创建动态代理，如ASM、cglib、Javassist等。
+目前比较主流的创建动态代理的方式除了上文介绍的JDK动态代理，主流的还有ASM、cglib、Javassist等，其中asm、cglib在CXF、Spring等框架中应用的较多，Dubbo使用了Javassist。asm在API使用上更靠近原始的Java字节码操作，而cglib提供了更上层的抽象，API对开发人员更加友好，而Javassist相对折中。相对应的，在动态代理的创建和执行性能方面，Javassist的字节码操作方式与asm表现差不多，会比cglib表现要好，而且都要比JDK提供的动态代理要好的多，这是因为越面向底层的API封装逻辑越少，执行成本也比价低，所以我在项目中选用了Javassist。但是选择了性能，会牺牲一定的易用性，比如工程中就会出现类似下面晦涩的代码：
 
-CXF Spring cglib
+```
+...
+CtClass delegateClass = pool.get("test.reflect.Delegate");
+CtClass interceptorClass = pool.get("test.reflect.Interceptor");
+CtClass[] parameters = new CtClass[] { delegateClass, interceptorClass };
+CtConstructor ctc = CtNewConstructor.make(parameters, null, "{this.delegate=$1;this.interceptor=$2;}", c);
+			c.addConstructor(ctc);
 
+CtMethod method = CtMethod.make("public void doSomething(){}", c);
+method.setBody("{this.interceptor.before();this.delegate.doSomething();this.interceptor.after();}");
+c.addMethod(method);
+...
+```
 
+我当然可以再通过一些封装提供一些灵活性，但多少会有些成本，这是个平衡性能与开发体验的问题。
+
+另外说到性能再多提一句，动态代理用到了反射机制，而Oracle官方给我们的提示（Reflection Overhead）是如果没有确实的必要，不建议使用：
+
+```
+Reflection is powerful, but should not be used indiscriminately. If it is possible to perform an operation without using reflection, then it is preferable to avoid using it.
+```
+不提安全和破坏封装的问题，反射是确实对性能有影响的，根本原因我们都清楚，就是虚拟机无法对反射使用的一些如JNI代码进行优化。所以在使用动态代理的过程中，一般创建的动态代理对象是要缓存起来的，避免重复创建损耗性能，而调用对象代理的方法也是有损耗的，因为执行的是method.invoke，仍然是反射，有兴趣可以看看invoke里都做了啥。对反射的性能优化也是有的，比如Sun JVM提供的“noInflation”，不过尽管如此，仍然建议慎用。
 
 
