@@ -1,24 +1,104 @@
 # RateLimter解析
 
-限流，随着服务化的发展，已成为当下十分热门的话题，也是热门的造轮子Guava提供了一套限流
+服务限流、流量整形都是当下挺热门的话题，什么令牌桶、漏桶算法，再加上git上挺多重复的轮子。其实限流的基本算法并没有那么复杂，关键在于具体场景的使用权衡。本文将对Guava提供的限流工具RateLimiter进行源码解析，这也是当前应用较为广泛的限流工具。其实现了基本的令牌桶和漏桶功能，之所以说是基本的功能，是因为RateLimiter只实现了单桶单速，没有双桶或双速，而漏桶算法也只是*xxx*。
 
+网上令牌桶算法的介绍很多，可以参考Wiki上的介绍：[Token bucket](https://en.wikipedia.org/wiki/Token_bucket)，这里推荐一篇比较言简意赅的文章：[揭秘令牌桶](http://www.cnblogs.com/foonsun/p/5687978.html)
 
+在解析RateLimiter之前，有必要聊一聊目前常见的限流思路。我们在项目中实现过一个粗糙的流量控制单元，这个功能是基于计数器实现的。大致原理是为每个服务创建一个计数器，每次接收到服务请求时计数，当计数值达到预定的阈值，则抛出异常并中断请求，同时使用单独的清理线程定时对计数器进行重置。而阈值可以是请求数、成功数或失败数，*Hystrix*。这种方式的好处在于容易实现，缺点在于中断方式有些粗暴，无法应对那些正常的突发流量暴涨。另一种就是上面提到的漏桶算法，简单说就是将不确定速率的请求转换为确定速率的请求，并在确定速率下对请求进行处理，可以借这种场景进行理解：设置一个队列，我们不用考虑请求入队的速率，只用固定的速率出队处理，而队列溢出则丢弃，大概是这意思。漏桶算法也可以有效实现限流，并且实现也很简单，但是与计数器相同，仍然无法处理突发情况。再有就是令牌桶算法，其算法核心思想是可变速率，这个速率的上限是通过桶中令牌数量确定的，令牌桶允许请求数量突发性的暴涨，但暴涨将预支后续的吞吐量。漏桶和令牌桶都是基于QPS的流控方式，而计数器是基于请求阈值的。
 
-## 主体结构
+## 使用方法
 
-不管实现的功能是否简单，软件都是一个复杂系统，有时候这种复杂并不体现在代码量上，而是体现在架构设计上。往往几行代码就可以实现我们所需要的功能，但除了功能性之外，我们还需要考虑很多其他方面：工期、性能、可用性、安全性、合规性、成本、扩展性、易用性。
+RateLimiter的使用方法比较简单。先通过一个确定的QPS数值创建RateLimiter实例，每次执行操作前获取一次令牌。
 
-## SmoothWarmingUp
+```
+RateLimiter r = RateLimiter.create(1d);
+ExecutorService service = Executors.newFixedThreadPool(10);
+for (int i=0;i<100;i++) {
+	r.acquire();
+	service.submit(new Task(i));
+}
+```
 
-团队管理也是有架构的。我仍然延续之前的思路，提出抽象的管理原则，不论述方法。其实这完全是迫不得已，因为我并不知道什么具体的管理方法，完全是门外汉。而我胆敢写下一些管理的思路，其实是前一段时间看了《商业的本质》，这本书第一次为我勾勒了管理的架构轮廓。
+上面的代码使用create方法创建了QPS为1的限流器实例（即每秒生成一个令牌），在执行具体任务时需调用acquire方法获取令牌。acquire方法是一个阻塞方法，在未获取到令牌时无法执行后续操作，也可以使用tryAcquire实现非阻塞，立即返回true或false。
 
-## SmoothRateLimiter
+RateLimiter包含两个重载的acquire方法，上例中的方法是无参数的，默认获取一个令牌，另一个带参数的，参数获取令牌的个数。这个方法在具体使用时也非常有用，比如在根据处理字节数进行流控时，可表示每次允许处理的字节数。
 
-团队管理也是有架构的。我仍然延续之前的思路，提出抽象的管理原则，不论述方法。其实这完全是迫不得已，因为我并不知道什么具体的管理方法，完全是门外汉。而我胆敢写下一些管理的思路，其实是前一段时间看了《商业的本质》，这本书第一次为我勾勒了管理的架构轮廓。
+## 内部实现
+
+RateLimiter本身是个抽象类，查看继承关系可以看到其子类SmoothRateLimiter，这个类的子类又有SmoothBursty和SmoothWarmingUp。create方法分为两类，一类是不设置预热期的，另一类设置了预热期，前者在具体创建RateLimiter实例时使用的是SmoothBursty，后者是SmoothWarmingUp（平滑预热）。预热功能我们将在下一小节进行分析，本节主要关注SmoothBursty（平滑爆发）。
+
+我们回到create方法，当我们设置QPS之后，create方法调用其重载方法：
+
+```
+public static RateLimiter create(double permitsPerSecond) {
+    return create(SleepingStopwatch.createFromSystemTimer(), permitsPerSecond);
+  }
+  
+static RateLimiter create(SleepingStopwatch stopwatch, double permitsPerSecond) {
+    RateLimiter rateLimiter = new SmoothBursty(stopwatch, 1.0 /* maxBurstSeconds */);
+    rateLimiter.setRate(permitsPerSecond);
+    return rateLimiter;
+  }
+
+```
+SmoothBursty的构造方法包含两个参数，其中SleepingStopwatch参数是一个睡眠闹钟，其内部实现使用了Guava的工具类Uninterruptibles，简单来说就是对sleep操作进行了封装，使当前操作在一定时间内保持阻塞。另一个参数是最大爆发时间，固定为1秒，表示令牌的最大保存时间。创建SmoothBursty实例后，需要对其设置QPS，这是通过抽象方法doSetRate实现的。我们在RateLimiter的子类SmoothRateLimiter中看到doSetRate的实现。
+
+```
+final void doSetRate(double permitsPerSecond, long nowMicros) {
+    resync(nowMicros);
+    double stableIntervalMicros = SECONDS.toMicros(1L) / permitsPerSecond;
+    this.stableIntervalMicros = stableIntervalMicros;
+    doSetRate(permitsPerSecond, stableIntervalMicros);
+  }
+```
+
+在这里需要插播一下SmoothRateLimiter中的几个共享变量：
+
+```
+double storedPermits			当前存储的令牌（直译为许可）
+double maxPermits				存储令牌的最大数量
+double stableIntervalMicros		生成令牌的间隔时间（微秒）
+double nextFreeTicketMicros		上一个令牌的生成时间（微秒）
+```
+SoomthRateLimiter在进行QPS设置时需对上述变量进行计算并赋值，需要注意的是这里的间隔时间、生成时间均为相对时间，均是SleepingStopwatch启动后的相对时间：
+
+```
+final void doSetRate(double permitsPerSecond, long nowMicros) {
+    resync(nowMicros);
+    double stableIntervalMicros = SECONDS.toMicros(1L) / permitsPerSecond;
+    this.stableIntervalMicros = stableIntervalMicros;
+    doSetRate(permitsPerSecond, stableIntervalMicros);
+  }
+  
+...
+
+private void resync(long nowMicros) {
+    // if nextFreeTicket is in the past, resync to now
+    if (nowMicros > nextFreeTicketMicros) {
+      storedPermits = min(maxPermits,
+          storedPermits + (nowMicros - nextFreeTicketMicros) / stableIntervalMicros);
+      nextFreeTicketMicros = nowMicros;
+    }
+  }
+
+```
+在设置QPS前，需要调用resync方法对当前微秒值进行令牌添加，这里的入参即为SleepingStopwatch当前已阻塞的微秒数。resync方法的逻辑是：如果当前已阻塞时间大于上一次获取令牌的时间，将已存储的令牌增加（当前阻塞时间 - 距上一次令牌生成的时间）/令牌生成间隔，比如如果阻塞时间已达到1000微秒，上一次令牌生成时的阻塞时间为500微秒，令牌生成间隔为100微秒（QPS=10），则新生成5个令牌。最后再将上次令牌生成时间更新为当前阻塞时间。resync不仅在setRate时用到，在调用aquire方法获取令牌时也会用到，也就是说令牌的生成其实是在变更QPS设定和获取令牌时进行的，这样的好处在于不需要单独维护线程去生成令牌。
+
+补充完令牌后，再设置生成令牌的间隔时间，公式就是1秒/QPS，再转成微秒数。而当前存储的令牌数和最大存储令牌数的计算方式则继续通过抽象方法由子类实现。SmoothBursty中的计算方式为，最大存储令牌数为爆发时间（上面提到的默认1秒）*QPS，当前存储的令牌数在初始化时为0.0，启动后再变更QPS时，将变为
+
+看完令牌的生成过程，我们再看一下获取。
+
+## 预热
+
+啊。
+
+## Hystrix的熔断与限流
+
+啊
 
 ## 使用小结
 
-即使是《失控》中提到的蜂群，在杂乱无章的行动背后也有着自己的逻辑和架构。架构要发挥他正面的指导意义，就需要我们不断的学习和总结，并将无意识变为有意识的控制。严格来说这不是一篇技术博客了，而是一种对自己的提醒，提醒自己在工作中把握关键原则，有架构的意识。
+啊。
 
 
 
