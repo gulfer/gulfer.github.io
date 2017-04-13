@@ -136,13 +136,13 @@ final long reserveEarliestAvailable(int requiredPermits, long nowMicros) {
 这里我们可以看到最终获取令牌的方法是SmoothRateLimiter类中的reserveEarliestAvailable方法。此方法一上来仍然调用resync方法生成令牌，也就是说setRate和获取令牌时会生成令牌；第二步是取到所需令牌和当前存储令牌的较小值和差值；第三步是计算等待生成令牌所需的时间；最后更新上一次令牌的等待时间以及已存储的令牌数。解释一下其中计算等待时间的算法：storedPermitsToWaitTime方法在Smooth
 Bursty类中直接返回为0，因此只计算令牌差值和每个令牌生成间隔的积就可知一共需等待的时长。在SmoothRateLimiter的另一个子类SmoothWarmingUp中，storedPermitsToWaitTime方法实现相对复杂，后面再说。
 
-至此aquire方法完成，总的来说RateLimiter就是通过令牌数量计算阻塞时间，从而达到流量控制。
+至此aquire方法完成，**总的来说RateLimiter就是通过令牌数量计算阻塞时间，从而达到流量控制**。
 
 ## 预热
 
-SmoothWarmingUp提供了预热机制，个人理解预热是指并不会按照QPS生成所有令牌
+SmoothWarmingUp提供了预热机制，在调用RateLimiter的create方法时允许设置一个预热时间，在预热时间
 
-## Hystrix的熔断与限流
+## Hystrix的熔断与流控
 
 提到流控我们往往会想到Hystrix，不过以我的理解，Hystrix和流控的关注点是不同层面的，解决的问题也有所差异。Hystrix主要是做熔断的，在服务化体系中用来解决雪崩效应，是用比较直接的方式进行资源的隔离，从而保护整体系统。而流控虽然也是保护系统资源，但是使用的是比较柔和的方式，不会中断某个服务，而是通过阻塞进行缓冲。而且Hystrix实现熔断的方式是基于计数器，并不是基于某些桶算法。
 
@@ -150,7 +150,7 @@ SmoothWarmingUp提供了预热机制，个人理解预热是指并不会按照QP
 
 ## 小结
 
-总结一下，本文通过对RateLimiter代码进行简单的解析，介绍了令牌桶的基本实现原理，同时比较了流控与Hystrix熔断的差别。说点题外话，这次去学习RateLimiter，还是在项目中遇到了类似的问题，想借鉴其设计思路。我想说的是，读代码还是要带着问题去读，要参照某个场景去思考，另外就是先理解原理再读代码，还是先读代码再从中提取理论，我倾向前者。
+总结一下，本文通过对RateLimiter代码进行简单的解析，介绍了令牌桶的基本实现原理，同时比较了流控与Hystrix熔断的差别。RateLimiter适用于处理处理存在突发流量暴涨的限流场景，但由于并不是企业级产品，在分布式环境下，还是需要基于分布式架构设计的工具，比如redis来实现流控。说点题外话，这次去学习RateLimiter，还是在项目中遇到了类似的问题，想借鉴其设计思路。我想说的是，读代码还是要带着问题去读，要参照某个场景去思考，另外就是先理解原理再读代码，还是先读代码再从中提取理论，我倾向前者。
 
 
 
