@@ -136,11 +136,81 @@ final long reserveEarliestAvailable(int requiredPermits, long nowMicros) {
 这里我们可以看到最终获取令牌的方法是SmoothRateLimiter类中的reserveEarliestAvailable方法。此方法一上来仍然调用resync方法生成令牌，也就是说setRate和获取令牌时会生成令牌；第二步是取到所需令牌和当前存储令牌的较小值和差值；第三步是计算等待生成令牌所需的时间；最后更新上一次令牌的等待时间以及已存储的令牌数。解释一下其中计算等待时间的算法：storedPermitsToWaitTime方法在Smooth
 Bursty类中直接返回为0，因此只计算令牌差值和每个令牌生成间隔的积就可知一共需等待的时长。在SmoothRateLimiter的另一个子类SmoothWarmingUp中，storedPermitsToWaitTime方法实现相对复杂，后面再说。
 
-至此aquire方法完成，**总的来说RateLimiter就是通过令牌数量计算阻塞时间，从而达到流量控制**。
+至此aquire方法完成。**总的来说RateLimiter就是通过令牌数量计算并控制阻塞时间，从而达到流量控制的效果**。
 
 ## 预热
 
-SmoothWarmingUp提供了预热机制，在调用RateLimiter的create方法时允许设置一个预热时间，在预热时间
+SmoothWarmingUp提供了预热机制，在调用RateLimiter的create方法时允许设置一个预热时间，在预热时间达到前，按一定速率逐渐增加QPS（即缩短阻塞时间），在预热结束后，按正常QPS输出。说实话我并没有觉得这个预热有什么用处，可能是我确实没能理解其深层含义。网上还有说SmoothWarmingUp是一种变相的漏桶算法，我也并不认同，因为其只是对令牌桶算法的增强，支持流量的突发增长，并不是漏桶。
+
+SmoothWarmingUp与SmoothBursty的差别体现在doSetRate和storedPermitsToWaitTime方法，前者在设置QPS时，设置了一个半数令牌，即最大令牌数的1/2，同时设置了默认的冷却间隔为正常令牌等待间隔的3倍，并根据冷却间隔与正常令牌等待间隔之差与半数令牌之比，计算预热加速曲线的斜率。说起来比较抽象，稍微修改下上面的例子示意一下预热：
+
+```
+RateLimiter r = RateLimiter.create(1d, 10, TimeUnit.SECONDS);
+		long start = System.currentTimeMillis();
+		ExecutorService service = Executors.newFixedThreadPool(10);
+		for (int i=0;i<100;i++) {
+			r.acquire();
+			service.submit(new Task(i, start));
+		}
+...
+output:
+0 running...3
+1 running...2803
+2 running...5202
+3 running...7207
+4 running...8802
+5 running...10002
+6 running...11007
+7 running...12007
+...
+```
+我创建了一个QPS=1的RateLimiter实例，并设置预热时间为10秒，通过输出我们可以看到第5个输出为10秒那次正常输出，而之后的输出间隔已经变成匀速。前面5次的输出有明显加速的过程，获取令牌的间隔分别为2800、2400、2000、1600、1200，一共10秒，最终加速到每秒获取一次令牌。
+
+源码中的注释有这样一幅图，也可以帮助我们理解：
+
+```
+This implements the following function:
+   *
+   *          ^ throttling
+   *          |
+   * 3*stable +                  /
+   * interval |                 /.
+   *  (cold)  |                / .
+   *          |               /  .   <-- "warmup period" is the area of the trapezoid between
+   * 2*stable +              /   .       halfPermits and maxPermits
+   * interval |             /    .
+   *          |            /     .
+   *          |           /      .
+   *   stable +----------/  WARM . }
+   * interval |          .   UP  . } <-- this rectangle (from 0 to maxPermits, and
+   *          |          . PERIOD. }     height == stableInterval) defines the cooldown period,
+   *          |          .       . }     and we want cooldownPeriod == warmupPeriod
+   *          |---------------------------------> storedPermits
+   *              (halfPermits) (maxPermits)
+```
+
+再回看代码实现加速是如何实现的：
+
+```
+long storedPermitsToWaitTime(double storedPermits, double permitsToTake) {
+      double availablePermitsAboveHalf = storedPermits - halfPermits;
+      long micros = 0;
+      // measuring the integral on the right part of the function (the climbing line)
+      if (availablePermitsAboveHalf > 0.0) {
+        double permitsAboveHalfToTake = min(availablePermitsAboveHalf, permitsToTake);
+        micros = (long) (permitsAboveHalfToTake * (permitsToTime(availablePermitsAboveHalf)
+            + permitsToTime(availablePermitsAboveHalf - permitsAboveHalfToTake)) / 2.0);
+        permitsToTake -= permitsAboveHalfToTake;
+      }
+      // measuring the integral on the left part of the function (the horizontal line)
+      micros += (stableIntervalMicros * permitsToTake);
+      return micros;
+    }
+private double permitsToTime(double permits) {
+      return stableIntervalMicros + permits * slope;
+    }
+```
+斜率已经通过doSetRate方法计算得出。如果当前已存储的令牌大于半数令牌，则需计算两部分等待时间，一是已有的超过半数令牌部分的等待时间，另一部分是已有的超过半数令牌与还要获取的令牌之差，两部分都需要通过斜率计算等待时间，最后相加取算术平均。算法并不复杂，理解意图即可。
 
 ## Hystrix的熔断与流控
 
