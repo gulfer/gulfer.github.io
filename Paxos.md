@@ -50,12 +50,19 @@ Assume a collection of processes that can propose values. A consensus al- gorith
 
 ## Zookeeper与Paxos
 
-介绍了下原理，我们还是回归代码吧。需要说明的是，大多数的分布式应用虽然基于Paxos协议来保证一致性，但出于这些应用自身的实际情况，多少都对Paxos做了精简或变形。Zookeeper使用的一致性算法ZAB，就是Paxos的一种变形算法。
+需要说明的是，大多数的分布式应用虽然基于Paxos协议来保证一致性，但出于这些应用自身的实际情况，多少都对Paxos做了精简或变形。Zookeeper使用的一致性算法ZAB，就是Paxos的一种变形算法。
 
-Zookeeper在设计上设置了Leader这样一个特殊的角色，这个角色属于分布式环境下的某一个节点，并且规定：先到Leader节点的操作将先执行，这样就保证了操作的执行顺序。而由于Leader可能存在宕机或网络中断的情况，因此需要对Leader进行选举，选举过程就用到了ZAB算法。
+Zookeeper在设计上设置了Leader这样一个特殊的角色，这个角色属于分布式环境下的某一个节点，并且规定：只有Leader能发起提案，且先到Leader节点的提案将先执行，这样就保证了操作的执行顺序。而由于Leader可能存在宕机或网络中断的情况，因此需要对Leader进行选举，选举过程也用到了ZAB算法。相对的，其他节点将被设置为Follower角色。需要注意的是选举出来的Leader，必须包含全部已经执行提案的日志。
 
-## Hystrix的熔断与流控
+Zookeeper的基本用法这里不做详细介绍了，只说明他是如何应用ZAB算法的。我们先对号入座，了解下Zookeeper各个组件对应Paxos的哪些角色：
 
+Zookeeper集群（伪集群）中的各个Server原本应该对应Paxos中的Proposer，但上面提到Zookeeper要求所有提案都需要由Leader发起，这样其实真正的Proposer就只有一个了，就是Leader，而各个Follower实际上只承担Acceptor和Learner的角色。提案就是我们对Zookeeper发送的各种操作指令，这些指令都有一个唯一的编号，就是zxid，我们可以在Zookeeper CLP中查看每个节点的zxid。当各个Server发现无法连接到Leader时，会发起选举，这时各Server是无法接受请求的。
+
+ZAB算法对每个节点设定的三种状态，分别是：Leading，也就是成为Leader的状态；Following，成为Follower的状态；Looking，尚未选举出Leader的状态。状态切换如下图：
+
+![State](https://github.com/gulfer/gulfer.github.io/blob/master/pic/election.png)
+
+ZAB的执行实际上分为三个阶段：首先是进行选举，篇幅限制不详细描述选举过程，只需要了解大致过程是根据64位zxid进行选择，较大者胜出；选举出Leader后，进入Recovery阶段，；最后Leader会发起广播（Broadcast）
 
 
 ## 小结
