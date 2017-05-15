@@ -62,5 +62,9 @@ ZAB选举执行实际上分为三个阶段：首先是进行选举，篇幅限�
 
 其实Zookeeper并不是一种Paxos协议的典型实现，但Zookeeper及其ZAB算法的核心思想都来源于Paxos协议。Paxos协议处理的是分布式系统中的数据一致性问题，一个复杂的分布式系统可能出现很多其他问题。比如脑裂，分布式系统中某个节点宕机或假死的情况，需要有一个协调者对这种情况进行监测，Zookeeper就提供了很好的基于心跳的监测机制。事实上现在业内的共识是，分布式系统的确需要一种产品来实现各个分布式节点之间的协调配合，不管是用Zookeeper还是其他产品，而这种产品或多或少都会精简或扩展Paxos原始算法。
 
+参考书目：
 
+[《Leslie Lamport：Paxos made Simple》](http://lamport.azurewebsites.net/pubs/paxos-simple.pdf)原版论文，建议同志们不要看翻译版，我看过两个版本的翻译，都有不同程度的歧义。
+
+[《PAXOS到ZOOKEEPER分布式一致性原理与实践》](http://download.csdn.net/detail/zhangyy1975/9404283)亲测可下，不过Paxos算法描述那部分也是直接翻译上面的论文
 
