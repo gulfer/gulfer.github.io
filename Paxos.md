@@ -1,12 +1,6 @@
-# Paxos与Zookeeper
+# 分布式与Paxos
 
-什么是分布式
-什么是一致性
-为什么要有Paxos
-Paxos是怎么做的
-Zookeeper是怎么做的
-
-在介绍Paxos和Zookeeper之前，我们需要先搞清楚什么是分布式系统，分布式系统能解决什么样的问题，又带来哪些问题，分布式系统是怎么解决这些问题的。事实上我完全不是这方面的专家，对理论、技术的了解也并不深入，在此只想以个人肤浅的见识抛砖引玉，大家共同探讨下。
+在介绍Paxos和Zookeeper之前，我们需要先搞清楚什么是分布式系统，分布式系统能解决什么样的问题，又带来哪些问题，分布式系统是怎么解决这些问题的。在此仅以个人肤浅的见识抛砖引玉，大家共同探讨下。
 
 ## 分布式系统
 
@@ -62,12 +56,11 @@ ZAB选举算法对每个节点设定的三种状态，分别是：Leading，也�
 
 ![State](https://github.com/gulfer/gulfer.github.io/blob/master/pic/election.png)
 
-ZAB选举执行实际上分为三个阶段：首先是进行选举，篇幅限制不详细描述选举过程，只需要了解大致过程是根据64位zxid进行选择，较大者胜出，并更新朝代编号（Epoch），有兴趣的可以查看Zookeeper源码中的FastLeaderElection类；选举出Leader后，进入Recovery阶段，由Leader通知所有Follower已经改朝换代，并在Follower间同步数据；最后Leader会发起广播（Broadcast），选举完成。
-
+ZAB选举执行实际上分为三个阶段：首先是进行选举，篇幅限制不详细描述选举过程，只需要了解大致过程是根据64位zxid进行选择，较大者胜出，并更新朝代编号（Epoch，zxid的前32位），有兴趣的可以查看Zookeeper源码中的FastLeaderElection类；选举出Leader后，进入Recovery阶段，由Leader通知所有Follower已经改朝换代，并在Follower间同步数据；最后Leader会发起广播（Broadcast），选举完成。
 
 ## 小结
 
-
+其实Zookeeper并不是一种Paxos协议的典型实现，但Zookeeper及其ZAB算法的核心思想都来源于Paxos协议。Paxos协议处理的是分布式系统中的数据一致性问题，一个复杂的分布式系统可能出现很多其他问题。比如脑裂，分布式系统中某个节点宕机或假死的情况，需要有一个协调者对这种情况进行监测，Zookeeper就提供了很好的基于心跳的监测机制。事实上现在业内的共识是，分布式系统的确需要一种产品来实现各个分布式节点之间的协调配合，不管是用Zookeeper还是其他产品，而这种产品或多或少都会精简或扩展Paxos原始算法。
 
 
 
