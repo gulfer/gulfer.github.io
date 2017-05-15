@@ -58,11 +58,11 @@ Zookeeper的基本用法这里不做详细介绍了，只说明他是如何应�
 
 Zookeeper集群（伪集群）中的各个Server原本应该对应Paxos中的Proposer，但上面提到Zookeeper要求所有提案都需要由Leader发起，这样其实真正的Proposer就只有一个了，就是Leader，而各个Follower实际上只承担Acceptor和Learner的角色。提案就是我们对Zookeeper发送的各种操作指令，这些指令都有一个唯一的编号，就是zxid，我们可以在Zookeeper CLP中查看每个节点的zxid。当各个Server发现无法连接到Leader时，会发起选举，这时各Server是无法接受请求的。
 
-ZAB算法对每个节点设定的三种状态，分别是：Leading，也就是成为Leader的状态；Following，成为Follower的状态；Looking，尚未选举出Leader的状态。状态切换如下图：
+ZAB选举算法对每个节点设定的三种状态，分别是：Leading，也就是成为Leader的状态；Following，成为Follower的状态；Looking，尚未选举出Leader时的状态。状态切换如下图：
 
 ![State](https://github.com/gulfer/gulfer.github.io/blob/master/pic/election.png)
 
-ZAB的执行实际上分为三个阶段：首先是进行选举，篇幅限制不详细描述选举过程，只需要了解大致过程是根据64位zxid进行选择，较大者胜出；选举出Leader后，进入Recovery阶段，；最后Leader会发起广播（Broadcast）
+ZAB选举执行实际上分为三个阶段：首先是进行选举，篇幅限制不详细描述选举过程，只需要了解大致过程是根据64位zxid进行选择，较大者胜出，并更新朝代编号（Epoch），有兴趣的可以查看Zookeeper源码中的FastLeaderElection类；选举出Leader后，进入Recovery阶段，由Leader通知所有Follower已经改朝换代，并在Follower间同步数据；最后Leader会发起广播（Broadcast），选举完成。
 
 
 ## 小结
