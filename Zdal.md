@@ -20,13 +20,66 @@ id段分库分表的前提是确保id有序，这样就可以对id按号段进�
 
 ## 索引表设计
 
-在操作分库或分表时，比较常见的问题是当查询条件并不是分库分表键时，将无法路由到具体的分库或分表。通常做法是建立索引表，比如我们有一张用户信息表，分库分表键是用户id，而用户登录时可通过用户名、手机号登录并查询出用户id，这时就需要对用户名及手机号分别创建索引表。而如果我们把手机号、用户名作为唯一性的用户标识时，需要设计以登录名为主键的纵表或确定登录名的横标，当使用用户id查询时可以直接定位到记录。如下图所示：
+在操作分库或分表时，比较常见的问题是当查询条件并不是分库分表键时，将无法路由到具体的分库或分表。通常做法是为每个查询条件均建立索引表，比如我们有一张用户信息表，分库分表键是用户id，而用户登录时可通过用户名、手机号登录并查询出用户id，这时就需要对用户名及手机号分别创建索引表。而如果我们把手机号、用户名作为唯一性的用户标识时，需要设计以登录名为主键的纵表或确定登录名的横标，当使用用户id查询时可以直接定位到记录。如下图所示：
 
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/index_table.png)
 
+建立索引表或路由表可以解决非分库分表键查询的问题，但同时会增大数据冗余，而索引表本身一般也会做分库分表。
 
 ## Zdal使用实践
 
-简单
+Zdal是支付宝开发的数据中间件框架，实现分库分表、failover切换等功能，支持常用的SQL语法。Zdal并不开源，git上也有一些重复的轮子，不过我们在实际项目中还是使用了Zdal。事实上各种分库分表框架的基本原理基本类似，所以在具体使用上，这里仍将以Zdal为例。
+
+Zdal这类分库分表框架的基本原理是在JDBC层对库名、表名进行解析并替换，SQL执行完毕后会对ResultSet进行合并。而对应用来说，这些操作均被Zdal数据源屏蔽在下层，应用可以使用任何ORM框架编写SQL语句，集成毫无压力。Zdal的执行流程如下：
+
+![](https://github.com/gulfer/gulfer.github.io/blob/master/pic/zdal1.png)
+
+应用集成Zdal需增加三部分配置，分别是Zdal数据源配置、Zdal数据库配置、分库分表规则配置。数据源配置如下：
+
+数据库配置如下：
+
+分库分表规则配置如下：
+
+```
+    <bean id="appRule" class="com.alipay.zdal.rule.config.beans.AppRule">
+		<property name="masterRule" ref="appRWRule"/>
+	</bean>
+	
+	<bean id="appRWRule" class="com.alipay.zdal.rule.config.beans.ShardRule">
+		<property name="tableRules">
+			<map>
+				<entry key="TABLE_1" value-ref="idRule"/>
+			</map>
+		</property>
+	</bean>
+	
+	<bean id="idRule" class="com.alipay.zdal.rule.config.beans.TableRule" init-method="init">
+		<property name="tbSuffix" value="resetForEachDB:[_0-_3]"/>
+		<property name="dbIndexes" value="db0,db1"/>
+		<property name="dbRuleArray">
+			<list>
+				<!-- <value>
+					return (int)(Math.floor(Double.parseDouble(#ID#) / (2*50)));
+				</value> -->
+				<value>
+					return (int)Math.floor(Integer.parseInt(#ID#) % (2*2) / 2);
+				</value>
+			</list>
+		</property>
+		<property name="tbRuleArray">
+			<list>
+				<!-- <value>
+					return (Integer)(Math.floor(Double.parseDouble(#ID#) / 50));
+				</value> -->
+				<value>
+					return (int)Math.floor(Integer.parseInt(#ID#) % (2*2));
+				</value>
+			</list>
+		</property>
+	</bean>
+```
+
+我们主要关注idRule，这里配置了具体分库分表规则。
 
 ## 小结
 
