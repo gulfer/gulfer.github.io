@@ -46,7 +46,7 @@ Zdal这类分库分表框架的基本原理是在JDBC层对库名、表名进行
 ```
 appName指应用名称，appDsName指应用数据源名称，这两个名称均需要和后面数据库配置中的同名属性配置一致，由于Zdal对configPath的处理是直接new File，因此configPath只能使用绝对路径。
 
-数据库配置文件一般命名为<appName>-<dbmode>-ds.xml，示例如下：
+数据库配置文件一般命名为\<appName\>-\<dbmode\>-ds.xml，示例如下：
 
 ```
     <bean id="app" class="com.alipay.zdal.client.config.bean.ZdalAppBean">
@@ -99,7 +99,7 @@ appName指应用名称，appDsName指应用数据源名称，这两个名称均�
 
 其中bean：app为应用相关配置，属性appName、dbmode需与DataSource配置一致，appDataSourceList则配置了数据源列表，这里我们只配置一个数据源，即appds，也可以直接配置appDsName。bean：appds即为数据源配置，需配置dataBaseType指定数据库类型，当前版本（0.0.1）支持DB2、Oracle、MySQL；configType是配置类型，可以指定读写分离或分库分表等，这里配置为SHARD表示分库分表，还可以指定为GROUP、SHARD_GROUP、SHARD_FAILOVER等；appRule属性引用bean：appRule，后面会做介绍；最后的属性是physicalDataSourceSet，配置物理数据源，完整例子中配置了两个，分别是db0、db1，通过名称可基本看出各项配置的含义，与在中间件上配置数据源类似。
 
-分库分表规则配置文件一般命名为<appName>-<dbmode>-rule.xml，示例如下：
+分库分表规则配置文件一般命名为\<appName\>-\<dbmode\>-rule.xml，示例如下：
 
 ```
     <bean id="appRule" class="com.alipay.zdal.rule.config.beans.AppRule">
