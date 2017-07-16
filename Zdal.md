@@ -143,13 +143,19 @@ appName指应用名称，appDsName指应用数据源名称，这两个名称均�
 bean：AppRule是总的应用规则配置，可以通过masterRule和slaveRule分别配置主库及备库。bean：ShardRule配置了分库分表的总体规则，需要通过tableRules属性为每张表指定具体分库分表规则。我们主要关注bean：idRule，这里配置了具体分库分表规则，dbIndexes表示使用的数据库，配置为db0,db1，分别对应数据库配置文件中的物理数据库db0、db1；tbSuffix属性表示每个数据库分布表的情况，这里配置的resetForEachDB:[_0-_3]表示后缀为_0、_1、_2、_3的四张表分布在db0、db1两个物理库上，另外支持的配置还包括throughAllDB：按序在数据库中分配分表，dbIndexForEachDB：每个库一张表；groovyTableList：使用groovy脚本动态计算分表；dbRuleArray属性配置了分库规则，我们将第二节的公式应用到此处。
 
 若使用id段分库，可配置为：
+
 `return (int)(Math.floor(Double.parseDouble(#ID#) / (2 * 50)));`
+
 若使用id取模分库，可配置为：
+
 `return (int)Math.floor(Double.parseDouble(#ID#) % (2 * 2) / 2);`
 
 而tbRuleArray属性配置分表规则，仍然套用第二节的公式，若使用id分段分表，可配置为：
+
 `return (int)Math.floor(Double.parseDouble(#ID#) % (2*2) / 2);`
+
 若使用id取模分表，可配置为：
+
 `return (int)Math.floor(Double.parseDouble(#ID#) % (2*2));`
 
 配置的value均为标准java表达式，返回值为分库号或分表号的后缀。至此就完成了对Zdal数据源、数据库及分库分表规则的配置。
