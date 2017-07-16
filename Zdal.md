@@ -36,9 +36,70 @@ Zdal这类分库分表框架的基本原理是在JDBC层对库名、表名进行
 
 应用集成Zdal需增加三部分配置，分别是Zdal数据源配置、Zdal数据库配置、分库分表规则配置。数据源配置如下：
 
-数据库配置如下：
+```
+    <bean id="zdalDataSource" class="com.alipay.zdal.client.jdbc.ZdalDataSource">
+		<property name="appName">app</property>
+		<property name="appDsName">appds</property>
+		<property name="dbmode">dev</property>
+		<property name="configPath">/config</property>
+	</bean>
+```
+appName指应用名称，appDsName指应用数据源名称，这两个名称均需要和后面数据库配置中的同名属性配置一致，由于Zdal对configPath的处理是直接new File，因此configPath只能使用绝对路径。
 
-分库分表规则配置如下：
+数据库配置文件一般命名为<appName>-<dbmode>-ds.xml，示例如下：
+
+```
+    <bean id="app" class="com.alipay.zdal.client.config.bean.ZdalAppBean">
+		<property name="appName" value="app"/>
+		<property name="dbmode" value="dev"/>
+		<property name="appDataSourceList">
+			<list>
+				<ref bean="appds" />
+			</list>
+		</property>
+	</bean>
+	
+	<bean id="appds" class="com.alipay.zdal.client.config.bean.AppDataSourceBean">
+		<property name="appDataSourceName" value="appds"/>
+		<property name="dataBaseType" value="DB2"/>
+		<property name="configType" value="SHARD"/>
+		<property name="appRule" ref="appRule"/>
+		<property name="physicalDataSourceSet">
+			<list>
+				<ref bean="db0" />
+				<ref bean="db1" />
+			</list>
+		</property>
+	</bean>
+	
+	<bean id="db0" class="com.alipay.zdal.client.config.bean.PhysicalDataSourceBean">
+		<property name="name" value="db0"/>
+		<property name="jdbcUrl" value="jdbc:db2://127.0.0.1:60000/db0:currentSchema=app;"/>
+		<property name="userName" value="user"/>
+		<property name="password" value="password"/>
+		<property name="minConn" value="1"/>
+		<property name="maxConn" value="10"/>
+		<property name="blockingTimeoutMillis" value="180"/>
+		<property name="idleTimeoutMinutes" value="180"/>
+		<property name="preparedStatementCacheSize" value="100"/>
+		<property name="queryTimeout" value="180"/>
+		<property name="prefill" value="true"/>
+		<property name="connectionProperties">
+			<map>
+				<entry key="connectTimeout" value="500"/>
+				<entry key="autoReconnect" value="true"/>
+				<entry key="initialTimeout" value="1"/>
+				<entry key="maxReconnects" value="2"/>
+				<entry key="socketTimeout" value="5000"/>
+				<entry key="failOverReadOnly" value="false"/>
+			</map>
+		</property>	
+	</bean>
+```
+
+其中bean：app为应用相关配置，属性appName、dbmode需与DataSource配置一致，appDataSourceList则配置了数据源列表，这里我们只配置一个数据源，即appds，也可以直接配置appDsName。bean：appds即为数据源配置，需配置dataBaseType指定数据库类型，当前版本（0.0.1）支持DB2、Oracle、MySQL；configType是配置类型，可以指定读写分离或分库分表等，这里配置为SHARD表示分库分表，还可以指定为GROUP、SHARD_GROUP、SHARD_FAILOVER等；appRule属性引用bean：appRule，后面会做介绍；最后的属性是physicalDataSourceSet，配置物理数据源，完整例子中配置了两个，分别是db0、db1，通过名称可基本看出各项配置的含义，与在中间件上配置数据源类似。
+
+分库分表规则配置文件一般命名为<appName>-<dbmode>-rule.xml，示例如下：
 
 ```
     <bean id="appRule" class="com.alipay.zdal.rule.config.beans.AppRule">
@@ -62,7 +123,7 @@ Zdal这类分库分表框架的基本原理是在JDBC层对库名、表名进行
 					return (int)(Math.floor(Double.parseDouble(#ID#) / (2*50)));
 				</value> -->
 				<value>
-					return (int)Math.floor(Integer.parseInt(#ID#) % (2*2) / 2);
+					return (int)Math.floor(Double.parseDouble(#ID#) % (2*2) / 2);
 				</value>
 			</list>
 		</property>
@@ -72,16 +133,30 @@ Zdal这类分库分表框架的基本原理是在JDBC层对库名、表名进行
 					return (Integer)(Math.floor(Double.parseDouble(#ID#) / 50));
 				</value> -->
 				<value>
-					return (int)Math.floor(Integer.parseInt(#ID#) % (2*2));
+					return (int)Math.floor(Double.parseDouble(#ID#) % (2*2));
 				</value>
 			</list>
 		</property>
 	</bean>
 ```
 
-我们主要关注idRule，这里配置了具体分库分表规则。
+bean：AppRule是总的应用规则配置，可以通过masterRule和slaveRule分别配置主库及备库。bean：ShardRule配置了分库分表的总体规则，需要通过tableRules属性为每张表指定具体分库分表规则。我们主要关注bean：idRule，这里配置了具体分库分表规则，dbIndexes表示使用的数据库，配置为db0,db1，分别对应数据库配置文件中的物理数据库db0、db1；tbSuffix属性表示每个数据库分布表的情况，这里配置的resetForEachDB:[_0-_3]表示后缀为_0、_1、_2、_3的四张表分布在db0、db1两个物理库上，另外支持的配置还包括throughAllDB：按序在数据库中分配分表，dbIndexForEachDB：每个库一张表；groovyTableList：使用groovy脚本动态计算分表；dbRuleArray属性配置了分库规则，我们将第二节的公式应用到此处。
+
+若使用id段分库，可配置为：
+`return (int)(Math.floor(Double.parseDouble(#ID#) / (2 * 50)));`
+若使用id取模分库，可配置为：
+`return (int)Math.floor(Double.parseDouble(#ID#) % (2 * 2) / 2);`
+
+而tbRuleArray属性配置分表规则，仍然套用第二节的公式，若使用id分段分表，可配置为：
+`return (int)Math.floor(Double.parseDouble(#ID#) % (2*2) / 2);`
+若使用id取模分表，可配置为：
+`return (int)Math.floor(Double.parseDouble(#ID#) % (2*2));`
+
+配置的value均为标准java表达式，返回值为分库号或分表号的后缀。至此就完成了对Zdal数据源、数据库及分库分表规则的配置。
 
 ## 小结
 
-从SOA
+Zdal的分库分表原理在于初始化时加载分库分表规则配置，而在执行SQL时，通过数据源层面替换实际数据库名及表名，实现分库分表操作。目前Zdal不支持的SQL包括between、having、not等，也不支持分布式事务。
+
+分库分表在涉及大数据量操作的应用设计中，是较为常用的减压手段，不过在具体实践中，需要结合业务实际情况、资源现状等多方面因素，选择合理的分库分表策略。
 
